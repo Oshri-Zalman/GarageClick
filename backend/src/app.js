@@ -6,6 +6,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/auth.routes');
 const customersRoutes = require('./routes/customers.routes');
 const vehiclesRoutes = require('./routes/vehicles.routes');
+const ticketsRoutes = require('./routes/tickets.routes');
 
 /**
  * Builds and configures the Express application.
@@ -28,6 +29,7 @@ function createApp() {
   app.use('/api/auth', authRoutes);
   app.use('/api/customers', customersRoutes);
   app.use('/api/vehicles', vehiclesRoutes);
+  app.use('/api/tickets', ticketsRoutes);
 
   // ----- 404 fallback -----
   app.use((req, res) => {

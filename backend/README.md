@@ -77,5 +77,24 @@ routes per the SRS permissions matrix.
 | GET  | `/api/vehicles/:id` | all roles | Vehicle + owner |
 | POST | `/api/vehicles` | all roles | Create vehicle |
 | PUT  | `/api/vehicles/:id` | Manager, Secretary | Update vehicle |
+| POST | `/api/tickets` | all roles | Open a ticket (existing vehicle, or new customer+vehicle on the fly) |
+| PATCH| `/api/tickets/:id/status` | all roles* | Change status via the state machine |
+| GET  | `/api/tickets` | all roles* | List tickets (Mechanic sees only their own) |
+| GET  | `/api/tickets/:id` | all roles* | Ticket detail (Mechanic only their own) |
 
 > "all roles" = Manager, Secretary, Mechanic (any authenticated user).
+> \*Ticket routes add finer rules in the controller/workflow service: a Mechanic
+> may only open tickets assigned to themselves and may only update/view their own.
+
+## Workflow (State Machine)
+
+Status transitions are enforced **server-side** (`src/services/workflow.js`):
+
+```
+Pending ──(accept)──▶ In Progress ──(complete)──▶ Completed
+```
+
+- `Pending → In Progress` stamps `started_at`.
+- `In Progress → Completed` stamps `completed_at` and **requires** `confirmation: true`.
+- `Completed` is terminal; any further transition returns `409`.
+- Illegal jumps (e.g. `Pending → Completed`) return `409`.

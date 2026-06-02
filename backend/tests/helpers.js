@@ -11,6 +11,7 @@ const { signToken } = require('../src/utils/jwt');
  */
 async function resetDb() {
   await pool.query('SET FOREIGN_KEY_CHECKS = 0');
+  await pool.query('DELETE FROM tickets_work');
   await pool.query('DELETE FROM vehicles');
   await pool.query('DELETE FROM customers');
   await pool.query('DELETE FROM users');
@@ -48,6 +49,22 @@ async function createCustomer({ full_name = 'דן', phone_number = '0501234567' 
   return { id: result.insertId, full_name, phone_number };
 }
 
+/** Create a vehicle directly (bypassing the API), for arranging test state. */
+async function createVehicle({
+  customer_id,
+  license_plate = '123-456',
+  manufacturer = 'Volkswagen',
+  model = 'Golf',
+  year = 2018,
+}) {
+  const [result] = await pool.query(
+    'INSERT INTO vehicles (customer_id, license_plate, manufacturer, model, year) ' +
+      'VALUES (?, ?, ?, ?, ?)',
+    [customer_id, license_plate, manufacturer, model, year]
+  );
+  return { id: result.insertId, customer_id, license_plate, manufacturer, model, year };
+}
+
 /** Sign a valid JWT for a given user (no DB lookup needed by middleware). */
 function tokenFor(user) {
   return signToken({ user_id: user.id, role: user.role });
@@ -63,6 +80,7 @@ module.exports = {
   resetDb,
   createUser,
   createCustomer,
+  createVehicle,
   tokenFor,
   bearer,
 };
