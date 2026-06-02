@@ -1,4 +1,5 @@
 """Ticket routes — transactional creation + state-machine status changes."""
+import logging
 import secrets
 from datetime import datetime, timezone
 
@@ -19,8 +20,10 @@ from ..models import (
     Vehicle,
 )
 from ..schemas import StatusUpdate, TicketCreate
+from ..services import notifications
 from ..services.workflow import authorize_status_change, validate_transition
 
+logger = logging.getLogger("garageclick.tickets")
 router = APIRouter(prefix="/api/tickets", tags=["tickets"])
 
 
@@ -218,10 +221,19 @@ def update_status(
         ticket.started_at = now
     elif body.new_status == "Completed":
         ticket.completed_at = now
-        # TODO (later step): WhatsApp notification + status_changed audit entry.
 
     db.commit()
-    return _fetch_ticket(db, ticket_id)
+    result = _fetch_ticket(db, ticket_id)
+
+    # Completion hook: notify the customer via (mock) WhatsApp. A notification
+    # failure must never break the status update, so it is best-effort.
+    if body.new_status == "Completed":
+        try:
+            notifications.notify_ticket_completed(result)
+        except Exception:  # pragma: no cover
+            logger.exception("WhatsApp notification failed for ticket %s", ticket_id)
+
+    return result
 
 
 @router.get("")

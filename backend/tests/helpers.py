@@ -1,6 +1,8 @@
 """Test factories + auth helpers (direct DB inserts bypass the API)."""
+import secrets
+
 from app.database import SessionLocal
-from app.models import Customer, PartInventory, User, Vehicle
+from app.models import Customer, PartInventory, TicketWork, User, Vehicle
 from app.security import create_token, hash_password
 
 
@@ -63,6 +65,29 @@ def create_part(part_name="Front brake disc", part_code="BRK-001",
         db.refresh(p)
         return {"id": p.id, "part_name": part_name, "part_code": part_code,
                 "quantity_current": quantity_current}
+
+
+def create_ticket(vehicle_id, assigned_mechanic_id, created_by_id, status="Pending",
+                  started_at=None, completed_at=None, created_at=None, description="x"):
+    """Insert a ticket directly with controllable timestamps (for report tests)."""
+    with SessionLocal() as db:
+        t = TicketWork(
+            ticket_number=f"TKT-{secrets.token_hex(4)}",
+            vehicle_id=vehicle_id,
+            created_by_id=created_by_id,
+            assigned_mechanic_id=assigned_mechanic_id,
+            description=description,
+            status=status,
+            started_at=started_at,
+            completed_at=completed_at,
+        )
+        db.add(t)
+        db.flush()
+        if created_at is not None:
+            t.created_at = created_at
+        db.commit()
+        db.refresh(t)
+        return {"id": t.id, "ticket_number": t.ticket_number, "status": status}
 
 
 def part_quantity(part_id):

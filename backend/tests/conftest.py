@@ -15,6 +15,7 @@ from app import models  # noqa: E402,F401  (registers tables on Base.metadata)
 from app.config import settings  # noqa: E402
 from app.database import Base, engine, ensure_database  # noqa: E402
 from app.main import app  # noqa: E402
+from app.services import notifications  # noqa: E402
 
 # Create the test database + tables once for the whole session.
 ensure_database(settings.DB_NAME)
@@ -39,6 +40,7 @@ def reset_db():
         for tbl in _TABLES:
             conn.execute(text(f"DELETE FROM {tbl}"))
         conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
+    notifications.reset()  # clear the mock WhatsApp outbox
     yield
 
 
