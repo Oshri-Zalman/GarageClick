@@ -1,10 +1,9 @@
 """Ticket routes — transactional creation + state-machine status changes."""
 import logging
 import secrets
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -215,12 +214,13 @@ def update_status(
             'Completing a ticket requires "confirmation": true.',
         )
 
-    now = datetime.now(timezone.utc)
+    # Use the DB clock (func.now()) so started_at/completed_at are consistent
+    # with created_at (CURRENT_TIMESTAMP) — same timezone, same date boundaries.
     ticket.status = body.new_status
     if body.new_status == "In Progress":
-        ticket.started_at = now
+        ticket.started_at = func.now()
     elif body.new_status == "Completed":
-        ticket.completed_at = now
+        ticket.completed_at = func.now()
 
     db.commit()
     result = _fetch_ticket(db, ticket_id)

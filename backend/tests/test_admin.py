@@ -1,5 +1,5 @@
 """Tests for the Manager-only admin reporting endpoints."""
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from .helpers import (
     auth,
@@ -11,8 +11,9 @@ from .helpers import (
 )
 
 
-def now_utc():
-    return datetime.now(timezone.utc)
+def now_local():
+    # Naive local time, matching the DB server clock used by created_at.
+    return datetime.now()
 
 
 def base_ctx():
@@ -47,9 +48,9 @@ class TestEmployees:
         v, m = ctx["vehicle"]["id"], ctx["manager"]["id"]
         mech1 = ctx["mech1"]["id"]
         create_ticket(v, mech1, m, status="Pending")
-        create_ticket(v, mech1, m, status="In Progress", started_at=now_utc())
+        create_ticket(v, mech1, m, status="In Progress", started_at=now_local())
         create_ticket(v, mech1, m, status="Completed",
-                      started_at=now_utc() - timedelta(minutes=30), completed_at=now_utc())
+                      started_at=now_local() - timedelta(minutes=30), completed_at=now_local())
 
         res = client.get("/api/admin/employees", headers=auth(ctx["mtoken"]))
         assert res.status_code == 200
@@ -64,9 +65,9 @@ class TestSummary:
         ctx = base_ctx()
         v, m, mech1 = ctx["vehicle"]["id"], ctx["manager"]["id"], ctx["mech1"]["id"]
         create_ticket(v, mech1, m, status="Pending")
-        create_ticket(v, mech1, m, status="In Progress", started_at=now_utc())
+        create_ticket(v, mech1, m, status="In Progress", started_at=now_local())
         create_ticket(v, mech1, m, status="Completed",
-                      started_at=now_utc() - timedelta(minutes=30), completed_at=now_utc())
+                      started_at=now_local() - timedelta(minutes=30), completed_at=now_local())
 
         res = client.get("/api/admin/tickets/summary", headers=auth(ctx["mtoken"]))
         assert res.status_code == 200
@@ -83,11 +84,11 @@ class TestByDay:
         v, m, mech1 = ctx["vehicle"]["id"], ctx["manager"]["id"], ctx["mech1"]["id"]
         create_ticket(v, mech1, m, status="Pending")
         create_ticket(v, mech1, m, status="Completed",
-                      started_at=now_utc() - timedelta(minutes=15), completed_at=now_utc())
+                      started_at=now_local() - timedelta(minutes=15), completed_at=now_local())
 
         res = client.get("/api/admin/tickets/by-day", headers=auth(ctx["mtoken"]))
         assert res.status_code == 200
-        today = now_utc().date().isoformat()
+        today = now_local().date().isoformat()
         row = next(r for r in res.json() if r["date"] == today)
         assert row["tickets_created"] == 2
         assert row["tickets_completed"] == 1
@@ -105,9 +106,9 @@ class TestPerformance:
         ctx = base_ctx()
         v, m, mech1 = ctx["vehicle"]["id"], ctx["manager"]["id"], ctx["mech1"]["id"]
         create_ticket(v, mech1, m, status="Completed",
-                      started_at=now_utc() - timedelta(minutes=20), completed_at=now_utc())
+                      started_at=now_local() - timedelta(minutes=20), completed_at=now_local())
         create_ticket(v, mech1, m, status="Completed",
-                      started_at=now_utc() - timedelta(minutes=20), completed_at=now_utc())
+                      started_at=now_local() - timedelta(minutes=20), completed_at=now_local())
 
         res = client.get("/api/admin/reports/performance",
                          params={"mechanic_id": mech1}, headers=auth(ctx["mtoken"]))

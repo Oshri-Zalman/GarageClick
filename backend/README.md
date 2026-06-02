@@ -94,6 +94,9 @@ Bad input is rejected with `422` and a clear message instead of reaching the DB:
 | GET  | `/api/admin/tickets/summary` | Manager | Counts per status + avg completion time |
 | GET  | `/api/admin/tickets/by-day?start_date=&end_date=` | Manager | Per-day created/completed + avg time |
 | GET  | `/api/admin/reports/performance?mechanic_id=` | Manager | Per-mechanic performance metrics |
+| POST | `/api/admin/users` | Manager | Create a user |
+| PATCH| `/api/admin/users/{id}` | Manager | Update user (password, role, name, activate/deactivate) |
+| DELETE | `/api/admin/users/{id}` | Manager | Delete a user (409 if referenced — deactivate instead) |
 
 > \*Ticket routes add finer rules: a Mechanic may only open tickets assigned to
 > themselves and may only view/update their own.
@@ -107,11 +110,19 @@ Pending ──(accept)──▶ In Progress ──(complete)──▶ Completed
 - Illegal jumps return `409`.
 
 ## Notifications (`app/services/notifications.py`)
-A **mock** WhatsApp integration (stands in for Twilio/Meta). When a ticket
-transitions to **Completed**, the status endpoint triggers
-`notify_ticket_completed(...)`, which sends the customer a "your car is ready"
-message. The send is best-effort — a notification failure never breaks the
-status update. The mock records messages in memory so tests can assert them.
+WhatsApp notification on ticket completion. When a ticket transitions to
+**Completed**, the status endpoint triggers `notify_ticket_completed(...)`,
+which sends the customer a "your car is ready" message. Best-effort — a
+notification failure never breaks the status update.
+
+Provider is chosen by `NOTIFICATIONS_PROVIDER`:
+- **`mock`** (default): logs + records in memory, no external calls. Tests force this.
+- **`twilio`**: sends a real WhatsApp via Twilio. Set `TWILIO_ACCOUNT_SID`,
+  `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM` in `.env`.
+
+Phone numbers are normalized to E.164 before sending (`0501234567` →
+`+972501234567`). With the Twilio **sandbox**, each recipient must first opt in
+by sending the sandbox `join <code>` message once.
 
 ## Ticket creation transaction
 `POST /api/tickets` runs in one SQLAlchemy transaction: optional new

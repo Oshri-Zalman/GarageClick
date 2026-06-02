@@ -7,30 +7,46 @@ need session/login auditing), so those fields are returned as null. Ticket
 difficulty / quality_score are likewise not modeled, so the performance report
 exposes the metrics we can actually compute from the data we store.
 """
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select, text
+from sqlalchemy import func, or_, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import require_roles
 from ..models import TicketWork, User
+from ..schemas import UserCreate, UserUpdate
+from ..security import hash_password
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+def _serialize_user(u: User) -> dict:
+    return {
+        "id": u.id,
+        "username": u.username,
+        "role": u.role,
+        "full_name": u.full_name,
+        "email": u.email,
+        "is_active": u.is_active,
+        "created_at": u.created_at,
+    }
 
 # TIMESTAMPDIFF(MINUTE, started_at, completed_at) — handling time in minutes.
 _minutes = func.timestampdiff(text("MINUTE"), TicketWork.started_at, TicketWork.completed_at)
 
 
-def _utc_today() -> date:
-    return datetime.now(timezone.utc).date()
+def _today() -> date:
+    # Server-local date, matching the DB's CURRENT_TIMESTAMP columns.
+    return date.today()
 
 
 @router.get("/employees")
 def employees(db: Session = Depends(get_db), _: dict = Depends(require_roles("Manager"))):
     """Team monitoring: open + completed-today ticket counts per employee."""
-    today = _utc_today()
+    today = _today()
 
     open_counts = dict(
         db.execute(
@@ -91,7 +107,7 @@ def tickets_by_day(
     _: dict = Depends(require_roles("Manager")),
 ):
     """Per-day created/completed counts and average handling time over a range."""
-    end = end_date or _utc_today()
+    end = end_date or _today()
     start = start_date or (end - timedelta(days=30))
     if start > end:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "start_date must be <= end_date.")
@@ -183,3 +199,93 @@ def performance(
         "total_work_hours": round(total_minutes / 60, 2),
         "avg_time_per_ticket_minutes": round(float(avg_minutes), 2) if avg_minutes is not None else None,
     }
+
+
+# ------------------------------------------------------------------
+# User management (FR-6.4) — Manager only
+# ------------------------------------------------------------------
+@router.post("/users", status_code=status.HTTP_201_CREATED)
+def create_user(
+    body: UserCreate,
+    db: Session = Depends(get_db),
+    _: dict = Depends(require_roles("Manager")),
+):
+    if db.scalar(select(User).where(User.username == body.username)) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "username already exists.")
+
+    user = User(
+        username=body.username,
+        password_hash=hash_password(body.password),
+        role=body.role,
+        full_name=body.full_name,
+        email=body.email,
+        is_active=True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return _serialize_user(user)
+
+
+@router.patch("/users/{user_id}")
+def update_user(
+    user_id: int,
+    body: UserUpdate,
+    db: Session = Depends(get_db),
+    _: dict = Depends(require_roles("Manager")),
+):
+    """Update a user — change password, role, name, or activate/deactivate."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found.")
+
+    data = body.model_dump(exclude_unset=True, exclude_none=True)
+    if not data:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Provide at least one field to update.")
+    if "password" in data:
+        user.password_hash = hash_password(data.pop("password"))
+    for key, value in data.items():
+        setattr(user, key, value)
+    db.commit()
+    db.refresh(user)
+    return _serialize_user(user)
+
+
+@router.delete("/users/{user_id}")
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current: dict = Depends(require_roles("Manager")),
+):
+    """Hard-delete a user. Blocked (409) if they are referenced by tickets or
+    audit history — deactivate via PATCH is_active=false instead."""
+    if user_id == current["user_id"]:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "You cannot delete your own account.")
+
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found.")
+
+    # Pre-check the obvious FK (tickets) for a clearer message.
+    has_tickets = db.scalar(
+        select(func.count())
+        .select_from(TicketWork)
+        .where(or_(TicketWork.created_by_id == user_id,
+                   TicketWork.assigned_mechanic_id == user_id))
+    )
+    if has_tickets:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "User is referenced by tickets; deactivate (is_active=false) instead of deleting.",
+        )
+
+    try:
+        db.delete(user)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "User is referenced by other records; deactivate instead of deleting.",
+        )
+    return {"deleted": True, "id": user_id}

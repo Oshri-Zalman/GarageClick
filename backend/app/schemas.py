@@ -158,3 +158,36 @@ class StatusUpdate(BaseModel):
         if v not in allowed:
             raise ValueError(f"new_status must be one of {sorted(allowed)}.")
         return v
+
+
+# ----- Admin: user management -----
+_ROLES = {"Manager", "Secretary", "Mechanic"}
+
+
+class UserCreate(BaseModel):
+    username: str = Field(min_length=3, max_length=50)
+    password: str = Field(min_length=6, max_length=255)
+    role: str
+    full_name: str | None = Field(default=None, max_length=255)
+    email: str | None = Field(default=None, max_length=100)
+
+    @field_validator("role")
+    @classmethod
+    def _role(cls, v: str) -> str:
+        if v not in _ROLES:
+            raise ValueError(f"role must be one of {sorted(_ROLES)}.")
+        return v
+
+
+class UserUpdate(BaseModel):
+    password: str | None = Field(default=None, min_length=6, max_length=255)
+    full_name: str | None = Field(default=None, max_length=255)
+    role: str | None = None
+    is_active: bool | None = None
+
+    @field_validator("role")
+    @classmethod
+    def _role(cls, v):
+        if v is not None and v not in _ROLES:
+            raise ValueError(f"role must be one of {sorted(_ROLES)}.")
+        return v

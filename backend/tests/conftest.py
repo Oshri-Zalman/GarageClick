@@ -6,6 +6,8 @@ import os
 os.environ["DB_NAME"] = os.environ.get("DB_NAME_TEST", "garageclick_test")
 # 32+ byte secret keeps PyJWT from emitting InsecureKeyLengthWarning during tests.
 os.environ.setdefault("JWT_SECRET", "test_secret_at_least_32_bytes_long_xx")
+# Force the mock notifier so tests NEVER make real Twilio/network calls.
+os.environ["NOTIFICATIONS_PROVIDER"] = "mock"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
