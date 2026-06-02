@@ -1,0 +1,46 @@
+"""Pytest setup: force the isolated test DB BEFORE importing the app, create
+the schema once, and reset all tables between tests."""
+import os
+
+# Must run before any `app.*` import so the engine binds to the test database.
+os.environ["DB_NAME"] = os.environ.get("DB_NAME_TEST", "garageclick_test")
+os.environ.setdefault("JWT_SECRET", "test_secret")
+
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import text  # noqa: E402
+
+from app import models  # noqa: E402,F401  (registers tables on Base.metadata)
+from app.config import settings  # noqa: E402
+from app.database import Base, engine, ensure_database  # noqa: E402
+from app.main import app  # noqa: E402
+
+# Create the test database + tables once for the whole session.
+ensure_database(settings.DB_NAME)
+Base.metadata.create_all(bind=engine)
+
+_TABLES = [
+    "audit_log",
+    "ticket_parts_used",
+    "tickets_work",
+    "parts_inventory",
+    "vehicles",
+    "customers",
+    "users",
+]
+
+
+@pytest.fixture(autouse=True)
+def reset_db():
+    """Wipe all tables before each test for isolation."""
+    with engine.begin() as conn:
+        conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
+        for tbl in _TABLES:
+            conn.execute(text(f"DELETE FROM {tbl}"))
+        conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
+    yield
+
+
+@pytest.fixture
+def client():
+    return TestClient(app)
