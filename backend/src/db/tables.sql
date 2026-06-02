@@ -46,3 +46,29 @@ CREATE TABLE IF NOT EXISTS vehicles (
     FOREIGN KEY (customer_id) REFERENCES customers (id)
     ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+-- Table 4: tickets_work (work tickets / Kanban cards)
+-- ticket_number is human-facing (e.g. TKT-00001) and generated from the id.
+-- status is enforced by the backend State Machine (workflow service).
+CREATE TABLE IF NOT EXISTS tickets_work (
+  id                        INT PRIMARY KEY AUTO_INCREMENT,
+  ticket_number             VARCHAR(20) NOT NULL UNIQUE,
+  vehicle_id                INT NOT NULL,
+  created_by_id             INT NOT NULL,   -- who opened the ticket
+  assigned_mechanic_id      INT NOT NULL,   -- which user works on it
+  description               TEXT,
+  status                    ENUM('Pending', 'In Progress', 'Completed')
+                              NOT NULL DEFAULT 'Pending',
+  estimated_completion_time DATETIME NULL,
+  created_at                DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  started_at                DATETIME NULL,  -- set on Pending -> In Progress
+  completed_at              DATETIME NULL,  -- set on In Progress -> Completed
+  INDEX idx_tickets_status (status),
+  INDEX idx_tickets_mechanic (assigned_mechanic_id),
+  CONSTRAINT fk_tickets_vehicle
+    FOREIGN KEY (vehicle_id) REFERENCES vehicles (id),
+  CONSTRAINT fk_tickets_created_by
+    FOREIGN KEY (created_by_id) REFERENCES users (id),
+  CONSTRAINT fk_tickets_mechanic
+    FOREIGN KEY (assigned_mechanic_id) REFERENCES users (id)
+) ENGINE=InnoDB;
