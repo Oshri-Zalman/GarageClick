@@ -50,6 +50,7 @@ async function createTicket(req, res, next) {
     assigned_mechanic_id,
     description,
     estimated_completion_time,
+    parts,
   } = req.body;
 
   // ---- Basic validation ----
@@ -58,6 +59,17 @@ async function createTicket(req, res, next) {
   }
   if (!description) {
     return res.status(400).json({ error: '"description" is required.' });
+  }
+
+  // Parts are optional (the "other" / no-parts case, FR-7.3). Normalize to a
+  // list of { part_id, quantity>=1 }.
+  const requestedParts = Array.isArray(parts) ? parts : [];
+  for (const p of requestedParts) {
+    if (!p || !p.part_id || (p.quantity != null && Number(p.quantity) < 1)) {
+      return res.status(400).json({
+        error: 'Each part needs a valid "part_id" and "quantity" >= 1.',
+      });
+    }
   }
 
   const scenarioA = !!vehicle_id;
@@ -127,6 +139,33 @@ async function createTicket(req, res, next) {
       }
     }
 
+    // ---- Validate parts availability BEFORE creating the ticket ----
+    // Lock each part row (FOR UPDATE) so concurrent ticket creations can't
+    // oversell the same stock. Fail fast if anything is missing/out of stock.
+    const partPlan = []; // { part_id, quantity, part_name }
+    for (const p of requestedParts) {
+      const quantity = p.quantity != null ? Number(p.quantity) : 1;
+      const [pr] = await conn.query(
+        'SELECT id, part_name, quantity_current FROM parts_inventory ' +
+          'WHERE id = ? FOR UPDATE',
+        [p.part_id]
+      );
+      if (pr.length === 0) {
+        await conn.rollback();
+        return res
+          .status(400)
+          .json({ error: `part_id ${p.part_id} does not exist.` });
+      }
+      if (pr[0].quantity_current < quantity) {
+        await conn.rollback();
+        return res.status(409).json({
+          error: `Part "${pr[0].part_name}" is out of stock ` +
+            `(requested ${quantity}, available ${pr[0].quantity_current}).`,
+        });
+      }
+      partPlan.push({ part_id: p.part_id, quantity, part_name: pr[0].part_name });
+    }
+
     // Insert the ticket with a temporary unique number, then set the final
     // human-facing TKT-NNNNN derived from the auto-increment id.
     // Keep it short — ticket_number is VARCHAR(20). "TMP-" + 12 hex = 16 chars.
@@ -151,6 +190,28 @@ async function createTicket(req, res, next) {
       ticketNumber,
       ins.insertId,
     ]);
+
+    // ---- Record parts usage + deduct inventory (FR-7.5) ----
+    for (const part of partPlan) {
+      await conn.query(
+        'INSERT INTO ticket_parts_used (ticket_id, part_id, quantity_used) ' +
+          'VALUES (?, ?, ?)',
+        [ins.insertId, part.part_id, part.quantity]
+      );
+      await conn.query(
+        'UPDATE parts_inventory SET quantity_current = quantity_current - ? ' +
+          'WHERE id = ?',
+        [part.quantity, part.part_id]
+      );
+    }
+
+    // ---- Audit trail ----
+    await conn.query(
+      'INSERT INTO audit_log ' +
+        '(user_id, action, resource_type, resource_id, old_value, new_value) ' +
+        "VALUES (?, 'ticket_created', 'ticket', ?, NULL, ?)",
+      [req.user.user_id, ins.insertId, ticketNumber]
+    );
 
     const ticket = await fetchTicket(conn, ins.insertId);
     await conn.commit();

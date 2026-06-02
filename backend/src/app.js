@@ -7,6 +7,7 @@ const authRoutes = require('./routes/auth.routes');
 const customersRoutes = require('./routes/customers.routes');
 const vehiclesRoutes = require('./routes/vehicles.routes');
 const ticketsRoutes = require('./routes/tickets.routes');
+const partsRoutes = require('./routes/parts.routes');
 
 /**
  * Builds and configures the Express application.
@@ -30,6 +31,7 @@ function createApp() {
   app.use('/api/customers', customersRoutes);
   app.use('/api/vehicles', vehiclesRoutes);
   app.use('/api/tickets', ticketsRoutes);
+  app.use('/api/parts', partsRoutes);
 
   // ----- 404 fallback -----
   app.use((req, res) => {
