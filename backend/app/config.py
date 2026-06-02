@@ -20,6 +20,12 @@ class Settings:
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRES_HOURS: int = int(os.getenv("JWT_EXPIRES_HOURS", "8"))
 
+    # ----- Notifications -----
+    NOTIFICATIONS_PROVIDER: str = os.getenv("NOTIFICATIONS_PROVIDER", "mock")
+    TWILIO_ACCOUNT_SID: str = os.getenv("TWILIO_ACCOUNT_SID", "")
+    TWILIO_AUTH_TOKEN: str = os.getenv("TWILIO_AUTH_TOKEN", "")
+    TWILIO_WHATSAPP_FROM: str = os.getenv("TWILIO_WHATSAPP_FROM", "")
+
     def database_url(self, db_name: str | None = None) -> str:
         """SQLAlchemy URL for the given database (defaults to DB_NAME)."""
         name = db_name or self.DB_NAME

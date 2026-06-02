@@ -4,6 +4,20 @@ from app.services import notifications
 from .helpers import auth, create_customer, create_user, create_vehicle, token_for
 
 
+class TestE164Normalization:
+    def test_israeli_local_to_international(self):
+        assert notifications.to_e164("0501234567") == "+972501234567"
+
+    def test_strips_separators(self):
+        assert notifications.to_e164("050-123-4567") == "+972501234567"
+
+    def test_keeps_existing_plus(self):
+        assert notifications.to_e164("+14155238886") == "+14155238886"
+
+    def test_country_prefix_without_plus(self):
+        assert notifications.to_e164("972501234567") == "+972501234567"
+
+
 class TestNotificationServiceUnit:
     def test_send_returns_result_and_records(self):
         before = len(notifications.sent_messages())
@@ -15,7 +29,7 @@ class TestNotificationServiceUnit:
     def test_notify_ticket_completed_builds_message(self):
         ticket = {"customer_phone": "0509999999", "ticket_number": "TKT-00042"}
         res = notifications.notify_ticket_completed(ticket)
-        assert res["phone"] == "0509999999"
+        assert res["phone"] == "+972509999999"  # normalized to E.164
         assert "TKT-00042" in res["message"]
 
     def test_reset_clears(self):
@@ -48,7 +62,7 @@ class TestCompletionHook:
 
         sent = notifications.sent_messages()
         assert len(sent) == 1
-        assert sent[0]["phone"] == "0501234567"
+        assert sent[0]["phone"] == "+972501234567"  # normalized to E.164
         assert "הסתיים" in sent[0]["message"]
 
     def test_in_progress_does_not_notify(self, client):
