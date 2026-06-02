@@ -90,6 +90,10 @@ Bad input is rejected with `422` and a clear message instead of reaching the DB:
 | GET  | `/api/parts/compatible?manufacturer=&model=&year=` | all roles | Compatible parts (out-of-stock flagged) |
 | GET  | `/api/parts/inventory` | Manager, Secretary | Full stock list |
 | POST/PUT | `/api/parts`, `/api/parts/{id}` | Manager, Secretary | Add / update part |
+| GET  | `/api/admin/employees` | Manager | Team monitoring (open + completed-today per employee) |
+| GET  | `/api/admin/tickets/summary` | Manager | Counts per status + avg completion time |
+| GET  | `/api/admin/tickets/by-day?start_date=&end_date=` | Manager | Per-day created/completed + avg time |
+| GET  | `/api/admin/reports/performance?mechanic_id=` | Manager | Per-mechanic performance metrics |
 
 > \*Ticket routes add finer rules: a Mechanic may only open tickets assigned to
 > themselves and may only view/update their own.
@@ -101,6 +105,13 @@ Pending ──(accept)──▶ In Progress ──(complete)──▶ Completed
 - `In Progress` stamps `started_at`; `Completed` stamps `completed_at` and
   **requires** `confirmation: true`. `Completed` is terminal.
 - Illegal jumps return `409`.
+
+## Notifications (`app/services/notifications.py`)
+A **mock** WhatsApp integration (stands in for Twilio/Meta). When a ticket
+transitions to **Completed**, the status endpoint triggers
+`notify_ticket_completed(...)`, which sends the customer a "your car is ready"
+message. The send is best-effort — a notification failure never breaks the
+status update. The mock records messages in memory so tests can assert them.
 
 ## Ticket creation transaction
 `POST /api/tickets` runs in one SQLAlchemy transaction: optional new
