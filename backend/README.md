@@ -81,6 +81,10 @@ routes per the SRS permissions matrix.
 | PATCH| `/api/tickets/:id/status` | all roles* | Change status via the state machine |
 | GET  | `/api/tickets` | all roles* | List tickets (Mechanic sees only their own) |
 | GET  | `/api/tickets/:id` | all roles* | Ticket detail (Mechanic only their own) |
+| GET  | `/api/parts/compatible?manufacturer=&model=&year=` | all roles | Compatible parts for a vehicle (incl. out-of-stock, flagged) |
+| GET  | `/api/parts/inventory` | Manager, Secretary | Full stock list |
+| POST | `/api/parts` | Manager, Secretary | Add a part |
+| PUT  | `/api/parts/:id` | Manager, Secretary | Update / restock a part |
 
 > "all roles" = Manager, Secretary, Mechanic (any authenticated user).
 > \*Ticket routes add finer rules in the controller/workflow service: a Mechanic
@@ -98,3 +102,11 @@ Pending ──(accept)──▶ In Progress ──(complete)──▶ Completed
 - `In Progress → Completed` stamps `completed_at` and **requires** `confirmation: true`.
 - `Completed` is terminal; any further transition returns `409`.
 - Illegal jumps (e.g. `Pending → Completed`) return `409`.
+
+## Ticket creation transaction
+
+`POST /api/tickets` runs entirely inside one SQL transaction (TDD §8): optional
+new customer/vehicle, parts availability check (rows locked `FOR UPDATE`),
+ticket insert, `ticket_parts_used` rows, `parts_inventory` deduction, and an
+`audit_log` (`action='ticket_created'`) entry. If any step fails — e.g. a part
+is out of stock — the whole thing rolls back, leaving stock and tables untouched.

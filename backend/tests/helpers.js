@@ -11,7 +11,10 @@ const { signToken } = require('../src/utils/jwt');
  */
 async function resetDb() {
   await pool.query('SET FOREIGN_KEY_CHECKS = 0');
+  await pool.query('DELETE FROM audit_log');
+  await pool.query('DELETE FROM ticket_parts_used');
   await pool.query('DELETE FROM tickets_work');
+  await pool.query('DELETE FROM parts_inventory');
   await pool.query('DELETE FROM vehicles');
   await pool.query('DELETE FROM customers');
   await pool.query('DELETE FROM users');
@@ -65,6 +68,33 @@ async function createVehicle({
   return { id: result.insertId, customer_id, license_plate, manufacturer, model, year };
 }
 
+/** Create a part directly (bypassing the API), for arranging test state. */
+async function createPart({
+  part_name = 'Front brake disc',
+  part_code = 'BRK-001',
+  manufacturer = 'Volkswagen',
+  model = 'Golf',
+  year_start = 2015,
+  quantity_current = 10,
+} = {}) {
+  const [result] = await pool.query(
+    'INSERT INTO parts_inventory ' +
+      '(part_name, part_code, manufacturer, model, year_start, quantity_current) ' +
+      'VALUES (?, ?, ?, ?, ?, ?)',
+    [part_name, part_code, manufacturer, model, year_start, quantity_current]
+  );
+  return { id: result.insertId, part_name, part_code, manufacturer, model, year_start, quantity_current };
+}
+
+/** Read current stock for a part. */
+async function partQuantity(id) {
+  const [rows] = await pool.query(
+    'SELECT quantity_current FROM parts_inventory WHERE id = ?',
+    [id]
+  );
+  return rows[0] ? rows[0].quantity_current : null;
+}
+
 /** Sign a valid JWT for a given user (no DB lookup needed by middleware). */
 function tokenFor(user) {
   return signToken({ user_id: user.id, role: user.role });
@@ -81,6 +111,8 @@ module.exports = {
   createUser,
   createCustomer,
   createVehicle,
+  createPart,
+  partQuantity,
   tokenFor,
   bearer,
 };

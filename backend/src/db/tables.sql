@@ -72,3 +72,48 @@ CREATE TABLE IF NOT EXISTS tickets_work (
   CONSTRAINT fk_tickets_mechanic
     FOREIGN KEY (assigned_mechanic_id) REFERENCES users (id)
 ) ENGINE=InnoDB;
+
+-- Table 5: parts_inventory (spare parts stock + compatibility matrix)
+-- A part is compatible with a vehicle when manufacturer + model match and
+-- year_start <= vehicle.year. The composite index serves that lookup.
+CREATE TABLE IF NOT EXISTS parts_inventory (
+  id               INT PRIMARY KEY AUTO_INCREMENT,
+  part_name        VARCHAR(255) NOT NULL,         -- e.g. "Front brake disc"
+  part_code        VARCHAR(50)  NOT NULL,         -- SKU / מק"ט
+  manufacturer     VARCHAR(100),                  -- e.g. Volkswagen
+  model            VARCHAR(100),                  -- e.g. Golf
+  year_start       INT,                           -- earliest compatible year
+  quantity_current INT NOT NULL DEFAULT 0,        -- units available now
+  created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                            ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_parts_compatibility (manufacturer, model, year_start)
+) ENGINE=InnoDB;
+
+-- Table 6: ticket_parts_used (which parts were consumed by a ticket)
+CREATE TABLE IF NOT EXISTS ticket_parts_used (
+  id            INT PRIMARY KEY AUTO_INCREMENT,
+  ticket_id     INT NOT NULL,
+  part_id       INT NOT NULL,
+  quantity_used INT NOT NULL DEFAULT 1,
+  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_tpu_ticket
+    FOREIGN KEY (ticket_id) REFERENCES tickets_work (id) ON DELETE CASCADE,
+  CONSTRAINT fk_tpu_part
+    FOREIGN KEY (part_id) REFERENCES parts_inventory (id)
+) ENGINE=InnoDB;
+
+-- Table 7: audit_log (who changed what, and when)
+CREATE TABLE IF NOT EXISTS audit_log (
+  id            INT PRIMARY KEY AUTO_INCREMENT,
+  user_id       INT,
+  action        VARCHAR(100),       -- 'ticket_created', 'status_changed', ...
+  resource_type VARCHAR(50),        -- 'ticket', 'part', ...
+  resource_id   INT,
+  old_value     VARCHAR(500),
+  new_value     VARCHAR(500),
+  timestamp     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_audit_timestamp (timestamp),
+  CONSTRAINT fk_audit_user
+    FOREIGN KEY (user_id) REFERENCES users (id)
+) ENGINE=InnoDB;
