@@ -1,0 +1,31 @@
+"""FastAPI application factory + entrypoint."""
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from .routers import auth, customers, parts, tickets, vehicles
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(title="GarageClick API", version="1.0.0")
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    @app.get("/health", tags=["health"])
+    def health():
+        return {"status": "ok", "service": "garageclick-backend"}
+
+    app.include_router(auth.router)
+    app.include_router(customers.router)
+    app.include_router(vehicles.router)
+    app.include_router(tickets.router)
+    app.include_router(parts.router)
+
+    return app
+
+
+app = create_app()

@@ -1,14 +1,25 @@
-# Dependencies
+# Node (leftover from the pre-migration backend — safe to delete locally)
 node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
 
 # Environment / secrets
 .env
 .env.local
 
 # Logs
-logs/
 *.log
-npm-debug.log*
 
 # OS / editor
 .DS_Store
