@@ -61,6 +61,15 @@ routes per the SRS permissions matrix.
 > Request-body validation errors return **422** (FastAPI/Pydantic convention).
 > Business-rule failures use explicit codes: `400` / `403` / `404` / `409`.
 
+### Input validation (`app/validators.py` + `app/schemas.py`)
+Bad input is rejected with `422` and a clear message instead of reaching the DB:
+- **phone_number** — separators stripped; must be 9–15 digits (optional leading `+`). Normalized on save (`050-123-4567` → `0501234567`).
+- **license_plate** — 4–10 letters/digits with optional dashes; upper-cased on save.
+- **year / year_start** — must be between 1900 and next year.
+- **quantity_current** ≥ 0, part **quantity** ≥ 1, ids > 0.
+- **string length caps** matching the DB columns (e.g. names ≤ 255, description ≤ 1000), so oversized input is a `422` rather than a `500`.
+- **new_status** must be one of the three valid statuses.
+
 ## Endpoints
 
 | Method | Path | Auth | Description |
