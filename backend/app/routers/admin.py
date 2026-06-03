@@ -69,8 +69,8 @@ def employees(db: Session = Depends(get_db), _: dict = Depends(require_roles("Ma
             "id": u.id,
             "name": u.full_name,
             "role": u.role,
-            "online": None,        # presence not tracked yet
-            "last_login": None,    # login auditing not implemented yet
+            "online": None,            # real-time presence not tracked yet
+            "last_login": u.last_login,  # set on each successful login
             "tickets_open": int(open_counts.get(u.id, 0)),
             "tickets_completed_today": int(completed_today.get(u.id, 0)),
         }

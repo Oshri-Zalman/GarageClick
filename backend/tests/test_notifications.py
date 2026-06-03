@@ -30,7 +30,9 @@ class TestNotificationServiceUnit:
         ticket = {"customer_phone": "0509999999", "ticket_number": "TKT-00042"}
         res = notifications.notify_ticket_completed(ticket)
         assert res["phone"] == "+972509999999"  # normalized to E.164
-        assert "TKT-00042" in res["message"]
+        assert "הסתיים" in res["message"]
+        assert "TKT-00042" not in res["message"]  # ticket number removed from body
+        assert res["ticket_number"] == "TKT-00042"  # still kept as metadata
 
     def test_reset_clears(self):
         notifications.send_whatsapp("0501234567", "x")

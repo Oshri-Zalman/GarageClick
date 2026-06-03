@@ -1,13 +1,13 @@
 """Auth routes (TDD §4.1)."""
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import get_current_user
 from ..models import User
 from ..schemas import LoginRequest
-from ..security import create_token, verify_password
+from ..security import create_token, revoke, verify_password
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -23,6 +23,11 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials.")
 
     token = create_token(user_id=user.id, role=user.role)
+
+    # Record the login time (FR-6.1 last_login for the manager dashboard).
+    user.last_login = func.now()
+    db.commit()
+
     return {
         "token": token,
         "user_id": user.id,
@@ -34,3 +39,10 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 @router.get("/verify-token")
 def verify_token(user: dict = Depends(get_current_user)):
     return {"valid": True, "user_id": user["user_id"], "role": user["role"]}
+
+
+@router.post("/logout")
+def logout(user: dict = Depends(get_current_user)):
+    """Revoke the caller's token so it can no longer be used (TDD §4.1)."""
+    revoke(user.get("jti"))
+    return {"success": True}
