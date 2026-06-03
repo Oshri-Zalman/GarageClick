@@ -27,6 +27,17 @@ uvicorn app.main:app --reload   # run -> http://127.0.0.1:8000  (docs at /docs)
 > small additive column migrations (e.g. `users.last_login`). Re-run it after
 > pulling changes that add columns to existing tables.
 
+### Demo data
+`python -m app.seed` populates the DB with demo users (manager / secretary /
+mechanic, password `demo1234`), a customer + vehicle, parts, and a sample
+ticket. Idempotent — safe to re-run.
+
+### Pagination
+List endpoints (`GET /api/tickets`, `/api/customers`, `/api/vehicles`,
+`/api/parts/inventory`) accept `?page=` (default 1) and `?limit=` (default 50,
+max 200) and return an envelope: `{ "items": [...], "page", "limit", "total" }`.
+(Search and history endpoints return plain arrays.)
+
 ## Testing
 
 Tests run against an **isolated** database (`garageclick_test`), created
@@ -89,13 +100,15 @@ Bad input is rejected with `422` and a clear message instead of reaching the DB:
 | GET  | `/api/vehicles/search?license_plate=` | all roles | Plate search (auto-fill) |
 | POST | `/api/vehicles` | all roles | Create vehicle |
 | GET/PUT | `/api/vehicles`, `/api/vehicles/{id}` | see code | Read/update |
+| GET  | `/api/vehicles/{id}/tickets` | Manager, Secretary | Ticket history for a vehicle |
+| GET  | `/api/customers/{id}/tickets` | Manager, Secretary | Ticket history for a customer (all vehicles) |
 | POST | `/api/tickets` | all roles | Open a ticket (existing vehicle, or new customer+vehicle) |
 | PATCH| `/api/tickets/{id}/status` | all roles* | Status change via state machine |
 | GET  | `/api/tickets`, `/api/tickets/{id}` | all roles* | List / detail (Mechanic: own only) |
 | GET  | `/api/parts/compatible?manufacturer=&model=&year=` | all roles | Compatible parts (out-of-stock flagged) |
 | GET  | `/api/parts/inventory` | Manager, Secretary | Full stock list |
 | POST/PUT | `/api/parts`, `/api/parts/{id}` | Manager, Secretary | Add / update part |
-| GET  | `/api/parts/reports/consumption?start_date=&end_date=` | Manager, Secretary | Parts consumption: total, per-day, by vehicle make, by employee (FR-7.6) |
+| GET  | `/api/parts/reports/consumption?start_date=&end_date=` | Manager, Secretary | Parts consumption: total, per-day, **per-part**, by vehicle make, by employee (FR-7.6) |
 | GET  | `/api/admin/employees` | Manager | Team monitoring (open + completed-today per employee) |
 | GET  | `/api/admin/tickets/summary` | Manager | Counts per status + avg completion time |
 | GET  | `/api/admin/tickets/by-day?start_date=&end_date=` | Manager | Per-day created/completed + avg time |

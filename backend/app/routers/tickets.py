@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import ALL_ROLES, get_current_user, require_roles
+from ..pagination import envelope, pagination
 from ..models import (
     AuditLog,
     Customer,
@@ -90,6 +91,13 @@ def create_ticket(
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
                 "assigned_mechanic_id does not refer to an active user.",
+            )
+        # Only a Mechanic (or a Manager working hands-on) can be assigned the
+        # work — never a Secretary.
+        if mechanic.role not in ("Mechanic", "Manager"):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "assigned_mechanic_id must be a Mechanic or Manager.",
             )
 
         # ---- Resolve the vehicle ----
@@ -253,22 +261,34 @@ def update_status(
 def list_tickets(
     status_filter: str | None = Query(default=None, alias="status"),
     mechanic_id: int | None = Query(default=None),
+    page: dict = Depends(pagination),
     db: Session = Depends(get_db),
     user: dict = Depends(require_roles(*ALL_ROLES)),
 ):
+    """Paginated ticket list. Mechanic is forced to their own; Manager/Secretary
+    see all (optionally filtered by mechanic_id / status)."""
+    conditions = []
+    if user["role"] == "Mechanic":
+        conditions.append(TicketWork.assigned_mechanic_id == user["user_id"])
+    elif mechanic_id is not None:
+        conditions.append(TicketWork.assigned_mechanic_id == mechanic_id)
+    if status_filter:
+        conditions.append(TicketWork.status == status_filter)
+
+    total = db.scalar(
+        select(func.count()).select_from(TicketWork).where(*conditions)
+    )
+
     stmt = (
         select(TicketWork, Vehicle, Customer, User.full_name)
         .join(Vehicle, Vehicle.id == TicketWork.vehicle_id)
         .join(Customer, Customer.id == Vehicle.customer_id)
         .join(User, User.id == TicketWork.assigned_mechanic_id)
+        .where(*conditions)
+        .order_by(TicketWork.created_at.desc())
+        .limit(page["limit"])
+        .offset(page["offset"])
     )
-    if user["role"] == "Mechanic":
-        stmt = stmt.where(TicketWork.assigned_mechanic_id == user["user_id"])
-    elif mechanic_id is not None:
-        stmt = stmt.where(TicketWork.assigned_mechanic_id == mechanic_id)
-    if status_filter:
-        stmt = stmt.where(TicketWork.status == status_filter)
-    stmt = stmt.order_by(TicketWork.created_at.desc())
 
     results = []
     for t, v, c, mechanic_name in db.execute(stmt).all():
@@ -293,7 +313,7 @@ def list_tickets(
                 "mechanic_name": mechanic_name,
             }
         )
-    return results
+    return envelope(results, total, page)
 
 
 @router.get("/{ticket_id}")

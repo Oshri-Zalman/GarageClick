@@ -50,6 +50,11 @@ class TestConsumptionReport:
         assert emp["parts_used"] == 5
         assert sum(d["parts_used"] for d in body["by_day"]) == 5
 
+        # by_part: exactly which part and how many.
+        by_part = {p["part_name"]: p["parts_used"] for p in body["by_part"]}
+        assert by_part["Brakes"] == 2
+        assert by_part["Oil"] == 3
+
     def test_secretary_allowed(self, client):
         c = ctx(client)
         res = client.get("/api/parts/reports/consumption",

@@ -30,19 +30,19 @@ class TestListVisibility:
         ctx = visibility_ctx()
         res = client.get("/api/tickets", headers=auth(token_for(ctx["mech1"])))
         assert res.status_code == 200
-        ids = {t["id"] for t in res.json()}
+        ids = {t["id"] for t in res.json()["items"]}
         assert ids == {ctx["ticket_a"]["id"]}  # NOT ticket_b
 
     def test_manager_sees_all(self, client):
         ctx = visibility_ctx()
         res = client.get("/api/tickets", headers=auth(token_for(ctx["manager"])))
-        ids = {t["id"] for t in res.json()}
+        ids = {t["id"] for t in res.json()["items"]}
         assert ids == {ctx["ticket_a"]["id"], ctx["ticket_b"]["id"]}
 
     def test_secretary_sees_all(self, client):
         ctx = visibility_ctx()
         res = client.get("/api/tickets", headers=auth(token_for(ctx["secretary"])))
-        ids = {t["id"] for t in res.json()}
+        ids = {t["id"] for t in res.json()["items"]}
         assert ids == {ctx["ticket_a"]["id"], ctx["ticket_b"]["id"]}
 
 
