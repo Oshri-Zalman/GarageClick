@@ -7,7 +7,7 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from .security import decode_token
+from .security import decode_token, is_revoked
 
 # auto_error=False so we can return our own 401 message instead of FastAPI's.
 _bearer = HTTPBearer(auto_error=False)
@@ -32,7 +32,15 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token.",
         )
-    return {"user_id": payload.get("user_id"), "role": payload.get("role")}
+
+    jti = payload.get("jti")
+    if is_revoked(jti):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked (logged out).",
+        )
+
+    return {"user_id": payload.get("user_id"), "role": payload.get("role"), "jti": jti}
 
 
 def require_roles(*allowed_roles: str):

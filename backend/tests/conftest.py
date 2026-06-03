@@ -14,13 +14,16 @@ from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
 from app import models  # noqa: E402,F401  (registers tables on Base.metadata)
+from app import security  # noqa: E402
 from app.config import settings  # noqa: E402
 from app.database import Base, engine, ensure_database  # noqa: E402
 from app.main import app  # noqa: E402
 from app.services import notifications  # noqa: E402
 
-# Create the test database + tables once for the whole session.
+# Rebuild the test schema from the models so column changes are always applied
+# (create_all alone won't ALTER an existing table). Safe — it's the test DB.
 ensure_database(settings.DB_NAME)
+Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 
 _TABLES = [
@@ -43,6 +46,7 @@ def reset_db():
             conn.execute(text(f"DELETE FROM {tbl}"))
         conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
     notifications.reset()  # clear the mock WhatsApp outbox
+    security.clear_revoked()  # clear the token denylist
     yield
 
 

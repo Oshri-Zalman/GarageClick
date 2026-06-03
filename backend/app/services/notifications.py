@@ -92,10 +92,8 @@ def send_whatsapp(phone: str, message: str, ticket_number: str | None = None) ->
 
 def notify_ticket_completed(ticket: dict) -> dict:
     """Build + send the 'your car is ready' message for a completed ticket."""
-    message = (
-        "הטיפול ברכבך הסתיים! ניתן להגיע לאיסוף. "
-        f"מספר כרטיס עבודה: {ticket.get('ticket_number')}"
-    )
+    message = "הטיפול ברכבך הסתיים! ניתן להגיע לאיסוף."
+    # ticket_number is still recorded as metadata, just not shown in the message.
     return send_whatsapp(ticket.get("customer_phone"), message, ticket.get("ticket_number"))
 
 

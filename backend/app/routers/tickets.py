@@ -216,11 +216,24 @@ def update_status(
 
     # Use the DB clock (func.now()) so started_at/completed_at are consistent
     # with created_at (CURRENT_TIMESTAMP) — same timezone, same date boundaries.
+    old_status = ticket.status
     ticket.status = body.new_status
     if body.new_status == "In Progress":
         ticket.started_at = func.now()
     elif body.new_status == "Completed":
         ticket.completed_at = func.now()
+
+    # Audit the transition (TDD §3.1 / §6.1) — atomic with the status change.
+    db.add(
+        AuditLog(
+            user_id=user["user_id"],
+            action="status_changed",
+            resource_type="ticket",
+            resource_id=ticket_id,
+            old_value=old_status,
+            new_value=body.new_status,
+        )
+    )
 
     db.commit()
     result = _fetch_ticket(db, ticket_id)

@@ -23,6 +23,10 @@ python -m app.init_db           # create database + tables from the ORM models
 uvicorn app.main:app --reload   # run -> http://127.0.0.1:8000  (docs at /docs)
 ```
 
+> **Schema note:** `python -m app.init_db` creates missing tables and applies
+> small additive column migrations (e.g. `users.last_login`). Re-run it after
+> pulling changes that add columns to existing tables.
+
 ## Testing
 
 Tests run against an **isolated** database (`garageclick_test`), created
@@ -75,8 +79,9 @@ Bad input is rejected with `422` and a clear message instead of reaching the DB:
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET  | `/health` | — | Health check |
-| POST | `/api/auth/login` | public | Exchange credentials for a JWT |
+| POST | `/api/auth/login` | public | Exchange credentials for a JWT (records `last_login`) |
 | GET  | `/api/auth/verify-token` | any role | Validate token + echo identity |
+| POST | `/api/auth/logout` | any role | Revoke the caller's token |
 | GET  | `/api/customers/search?license_plate=` | all roles | Search customer by plate |
 | GET  | `/api/customers` | Manager, Secretary | List customers |
 | GET/POST | `/api/customers`, `/api/customers/{id}` | see code | Read/create |
@@ -90,6 +95,7 @@ Bad input is rejected with `422` and a clear message instead of reaching the DB:
 | GET  | `/api/parts/compatible?manufacturer=&model=&year=` | all roles | Compatible parts (out-of-stock flagged) |
 | GET  | `/api/parts/inventory` | Manager, Secretary | Full stock list |
 | POST/PUT | `/api/parts`, `/api/parts/{id}` | Manager, Secretary | Add / update part |
+| GET  | `/api/parts/reports/consumption?start_date=&end_date=` | Manager, Secretary | Parts consumption: total, per-day, by vehicle make, by employee (FR-7.6) |
 | GET  | `/api/admin/employees` | Manager | Team monitoring (open + completed-today per employee) |
 | GET  | `/api/admin/tickets/summary` | Manager | Counts per status + avg completion time |
 | GET  | `/api/admin/tickets/by-day?start_date=&end_date=` | Manager | Per-day created/completed + avg time |

@@ -1,11 +1,13 @@
 """Parts routes — compatibility lookup + inventory management (TDD §4.4)."""
+from datetime import date, datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import ALL_ROLES, STAFF, require_roles
-from ..models import PartInventory
+from ..models import PartInventory, TicketPartUsed, TicketWork, User, Vehicle
 from ..schemas import PartCreate, PartUpdate
 
 router = APIRouter(prefix="/api/parts", tags=["parts"])
@@ -99,3 +101,71 @@ def update_part(
     db.commit()
     db.refresh(part)
     return _serialize(part)
+
+
+# ------------------------------------------------------------------
+# Consumption report (FR-7.6) — Manager/Secretary
+# ------------------------------------------------------------------
+@router.get("/reports/consumption")
+def consumption_report(
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
+    db: Session = Depends(get_db),
+    _: dict = Depends(require_roles(*STAFF)),
+):
+    """Parts consumption over a date range, broken down per FR-7.6:
+    total, per-day, by vehicle manufacturer, and by employee (the assigned
+    mechanic of the ticket the part was used on)."""
+    end = end_date or date.today()
+    start = start_date or (end - timedelta(days=30))
+    if start > end:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "start_date must be <= end_date.")
+
+    lower = datetime.combine(start, datetime.min.time())
+    upper = datetime.combine(end, datetime.max.time())
+    qty = func.coalesce(func.sum(TicketPartUsed.quantity_used), 0)
+    in_range = TicketPartUsed.created_at.between(lower, upper)
+
+    total = db.scalar(select(qty).where(in_range)) or 0
+
+    by_day = [
+        {"date": d.isoformat() if hasattr(d, "isoformat") else str(d), "parts_used": int(n)}
+        for d, n in db.execute(
+            select(func.date(TicketPartUsed.created_at), qty)
+            .where(in_range)
+            .group_by(func.date(TicketPartUsed.created_at))
+            .order_by(func.date(TicketPartUsed.created_at))
+        ).all()
+    ]
+
+    by_vehicle = [
+        {"manufacturer": manufacturer, "parts_used": int(n)}
+        for manufacturer, n in db.execute(
+            select(Vehicle.manufacturer, qty)
+            .join(TicketWork, TicketWork.id == TicketPartUsed.ticket_id)
+            .join(Vehicle, Vehicle.id == TicketWork.vehicle_id)
+            .where(in_range)
+            .group_by(Vehicle.manufacturer)
+            .order_by(qty.desc())
+        ).all()
+    ]
+
+    by_employee = [
+        {"mechanic_id": mid, "mechanic_name": name, "parts_used": int(n)}
+        for mid, name, n in db.execute(
+            select(User.id, User.full_name, qty)
+            .join(TicketWork, TicketWork.id == TicketPartUsed.ticket_id)
+            .join(User, User.id == TicketWork.assigned_mechanic_id)
+            .where(in_range)
+            .group_by(User.id, User.full_name)
+            .order_by(qty.desc())
+        ).all()
+    ]
+
+    return {
+        "range": {"start": start.isoformat(), "end": end.isoformat()},
+        "total_parts_used": int(total),
+        "by_day": by_day,
+        "by_vehicle_manufacturer": by_vehicle,
+        "by_employee": by_employee,
+    }
