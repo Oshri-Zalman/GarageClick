@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..deps import ALL_ROLES, STAFF, require_roles
 from ..models import PartInventory, TicketPartUsed, TicketWork, User, Vehicle
+from ..pagination import envelope, pagination
 from ..schemas import PartCreate, PartUpdate
 
 router = APIRouter(prefix="/api/parts", tags=["parts"])
@@ -63,11 +64,18 @@ def get_compatible(
 
 @router.get("/inventory")
 def list_inventory(
+    page: dict = Depends(pagination),
     db: Session = Depends(get_db),
     _: dict = Depends(require_roles(*STAFF)),
 ):
-    rows = db.scalars(select(PartInventory).order_by(PartInventory.part_name)).all()
-    return [_serialize(p) for p in rows]
+    total = db.scalar(select(func.count()).select_from(PartInventory))
+    rows = db.scalars(
+        select(PartInventory)
+        .order_by(PartInventory.part_name)
+        .limit(page["limit"])
+        .offset(page["offset"])
+    ).all()
+    return envelope([_serialize(p) for p in rows], total, page)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -162,10 +170,24 @@ def consumption_report(
         ).all()
     ]
 
+    # Exactly which part was consumed and how many (the manager's "which part,
+    # how many" question).
+    by_part = [
+        {"part_id": pid, "part_name": pname, "part_code": pcode, "parts_used": int(n)}
+        for pid, pname, pcode, n in db.execute(
+            select(PartInventory.id, PartInventory.part_name, PartInventory.part_code, qty)
+            .join(PartInventory, PartInventory.id == TicketPartUsed.part_id)
+            .where(in_range)
+            .group_by(PartInventory.id, PartInventory.part_name, PartInventory.part_code)
+            .order_by(qty.desc())
+        ).all()
+    ]
+
     return {
         "range": {"start": start.isoformat(), "end": end.isoformat()},
         "total_parts_used": int(total),
         "by_day": by_day,
+        "by_part": by_part,
         "by_vehicle_manufacturer": by_vehicle,
         "by_employee": by_employee,
     }

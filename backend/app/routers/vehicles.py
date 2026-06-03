@@ -1,12 +1,13 @@
 """Vehicle routes — CRUD + plate search (FR-2)."""
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import ALL_ROLES, STAFF, require_roles
-from ..models import Customer, Vehicle
+from ..models import Customer, TicketWork, Vehicle
+from ..pagination import envelope, pagination
 from ..schemas import VehicleCreate, VehicleUpdate
 
 router = APIRouter(prefix="/api/vehicles", tags=["vehicles"])
@@ -43,15 +44,19 @@ def search_vehicle(
 
 @router.get("")
 def list_vehicles(
+    page: dict = Depends(pagination),
     db: Session = Depends(get_db),
     _: dict = Depends(require_roles(*STAFF)),
 ):
+    total = db.scalar(select(func.count()).select_from(Vehicle))
     rows = db.execute(
         select(Vehicle, Customer.full_name)
         .join(Customer, Customer.id == Vehicle.customer_id)
         .order_by(Vehicle.created_at.desc())
+        .limit(page["limit"])
+        .offset(page["offset"])
     ).all()
-    return [
+    items = [
         {
             "id": v.id,
             "license_plate": v.license_plate,
@@ -62,6 +67,36 @@ def list_vehicles(
             "customer_name": name,
         }
         for v, name in rows
+    ]
+    return envelope(items, total, page)
+
+
+@router.get("/{vehicle_id}/tickets")
+def vehicle_tickets(
+    vehicle_id: int,
+    db: Session = Depends(get_db),
+    _: dict = Depends(require_roles(*STAFF)),
+):
+    """Full ticket history for a single vehicle, newest first."""
+    if db.get(Vehicle, vehicle_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Vehicle not found.")
+    rows = db.scalars(
+        select(TicketWork)
+        .where(TicketWork.vehicle_id == vehicle_id)
+        .order_by(TicketWork.created_at.desc())
+    ).all()
+    return [
+        {
+            "id": t.id,
+            "ticket_number": t.ticket_number,
+            "status": t.status,
+            "description": t.description,
+            "assigned_mechanic_id": t.assigned_mechanic_id,
+            "created_at": t.created_at,
+            "started_at": t.started_at,
+            "completed_at": t.completed_at,
+        }
+        for t in rows
     ]
 
 

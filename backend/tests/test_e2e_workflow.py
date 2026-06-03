@@ -84,11 +84,11 @@ class TestFullLifecycle:
 
         # --- 8. Inventory was deducted (5 -> 3) at ticket creation ---
         inv = client.get("/api/parts/inventory", headers=auth(stoken))
-        assert next(p for p in inv.json() if p["id"] == part_id)["quantity_current"] == 3
+        assert next(p for p in inv.json()["items"] if p["id"] == part_id)["quantity_current"] == 3
 
         # --- 9. Moshe sees ONLY his board, with this one ticket ---
         board = client.get("/api/tickets", headers=auth(mech_token))
-        assert [t["id"] for t in board.json()] == [ticket_id]
+        assert [t["id"] for t in board.json()["items"]] == [ticket_id]
 
         # --- 10. Moshe accepts the job: Pending -> In Progress ---
         accept = client.patch(f"/api/tickets/{ticket_id}/status", headers=auth(mech_token),

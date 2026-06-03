@@ -1,14 +1,39 @@
 """Customer routes — CRUD + search by license_plate (FR-1)."""
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import ALL_ROLES, STAFF, require_roles
-from ..models import Customer, Vehicle
+from ..models import Customer, TicketWork, Vehicle
+from ..pagination import envelope, pagination
 from ..schemas import CustomerCreate, CustomerUpdate
 
 router = APIRouter(prefix="/api/customers", tags=["customers"])
+
+
+def _ticket_history(db: Session, *conditions) -> list[dict]:
+    """Ticket history rows joined with the vehicle plate, newest first."""
+    rows = db.execute(
+        select(TicketWork, Vehicle.license_plate)
+        .join(Vehicle, Vehicle.id == TicketWork.vehicle_id)
+        .where(*conditions)
+        .order_by(TicketWork.created_at.desc())
+    ).all()
+    return [
+        {
+            "id": t.id,
+            "ticket_number": t.ticket_number,
+            "status": t.status,
+            "description": t.description,
+            "license_plate": plate,
+            "assigned_mechanic_id": t.assigned_mechanic_id,
+            "created_at": t.created_at,
+            "started_at": t.started_at,
+            "completed_at": t.completed_at,
+        }
+        for t, plate in rows
+    ]
 
 
 def _serialize(customer: Customer) -> dict:
@@ -55,11 +80,30 @@ def search_customers(
 
 @router.get("")
 def list_customers(
+    page: dict = Depends(pagination),
     db: Session = Depends(get_db),
     _: dict = Depends(require_roles(*STAFF)),
 ):
-    rows = db.scalars(select(Customer).order_by(Customer.created_at.desc())).all()
-    return [_serialize(c) for c in rows]
+    total = db.scalar(select(func.count()).select_from(Customer))
+    rows = db.scalars(
+        select(Customer)
+        .order_by(Customer.created_at.desc())
+        .limit(page["limit"])
+        .offset(page["offset"])
+    ).all()
+    return envelope([_serialize(c) for c in rows], total, page)
+
+
+@router.get("/{customer_id}/tickets")
+def customer_tickets(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    _: dict = Depends(require_roles(*STAFF)),
+):
+    """Full ticket history for a customer (across all their vehicles)."""
+    if db.get(Customer, customer_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found.")
+    return _ticket_history(db, Vehicle.customer_id == customer_id)
 
 
 @router.get("/{customer_id}")
