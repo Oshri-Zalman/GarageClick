@@ -12,7 +12,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/kanban', label: 'לוח קנבן', icon: '📋' },
   { to: '/tickets/new', label: 'קריאה חדשה', icon: '➕' },
   { to: '/customers', label: 'לקוחות ורכבים', icon: '🚗' },
-  { to: '/parts', label: 'מלאי חלקים', icon: '🔩' },
+  { to: '/parts', label: 'מלאי חלקים', icon: '🔩', roles: ['Manager', 'Secretary'] },
   { to: '/reports', label: 'דוחות', icon: '📊', roles: ['Manager'] },
   { to: '/users', label: 'ניהול משתמשים', icon: '👥', roles: ['Manager'] },
 ];

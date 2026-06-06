@@ -17,10 +17,10 @@ vi.mock('../hooks/useAuth', () => ({
 import { useAuth } from '../hooks/useAuth';
 
 describe('Sidebar Hebrew navigation', () => {
-  it('renders all core nav items in Hebrew', () => {
+  it('renders core nav items visible to all roles in Hebrew', () => {
     render(
       <MemoryRouter>
-        <Sidebar />
+        <Sidebar userRole="Secretary" />
       </MemoryRouter>
     );
     expect(screen.getByText('לוח בקרה')).toBeInTheDocument();
@@ -30,7 +30,7 @@ describe('Sidebar Hebrew navigation', () => {
     expect(screen.getByText('מלאי חלקים')).toBeInTheDocument();
   });
 
-  it('hides Manager-only items for non-manager roles', () => {
+  it('hides Manager-only and inventory items from Mechanic', () => {
     render(
       <MemoryRouter>
         <Sidebar userRole="Mechanic" />
@@ -38,6 +38,7 @@ describe('Sidebar Hebrew navigation', () => {
     );
     expect(screen.queryByText('דוחות')).not.toBeInTheDocument();
     expect(screen.queryByText('ניהול משתמשים')).not.toBeInTheDocument();
+    expect(screen.queryByText('מלאי חלקים')).not.toBeInTheDocument();
   });
 
   it('shows Manager-only items for Manager role', () => {
