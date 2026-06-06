@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate } from 'react-router-dom';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import { useAuth } from '../hooks/useAuth';
@@ -14,6 +14,8 @@ export default function AppLayout() {
       </div>
     );
   }
+
+  if (!user) return <Navigate to="/login" replace />;
 
   return (
     <div className="flex h-screen flex-col" dir="rtl">

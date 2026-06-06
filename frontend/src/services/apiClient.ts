@@ -23,6 +23,7 @@ apiClient.interceptors.response.use(
   (err: AxiosError) => {
     if (err.response?.status === 401) {
       sessionStorage.removeItem('access_token');
+      sessionStorage.removeItem('current_user');
       window.location.href = '/login';
     }
     return Promise.reject(err);

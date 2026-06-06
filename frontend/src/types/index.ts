@@ -48,8 +48,10 @@ export interface Ticket {
 }
 
 export interface AuthToken {
-  access_token: string;
-  token_type: string;
+  token: string;
+  user_id: number;
+  role: Role;
+  full_name: string | null;
 }
 
 export interface ApiError {

@@ -1,12 +1,20 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import Sidebar from '../layouts/Sidebar';
 import Header from '../layouts/Header';
+import AppLayout from '../layouts/AppLayout';
+import type { User } from '../types';
 
 vi.mock('../services/auth', () => ({
   logout: vi.fn(),
 }));
+
+vi.mock('../hooks/useAuth', () => ({
+  useAuth: vi.fn().mockReturnValue({ user: null, loading: false, error: null }),
+}));
+
+import { useAuth } from '../hooks/useAuth';
 
 describe('Sidebar Hebrew navigation', () => {
   it('renders all core nav items in Hebrew', () => {
@@ -70,5 +78,37 @@ describe('Header', () => {
       </MemoryRouter>
     );
     expect(screen.getByRole('button', { name: 'יציאה' })).toBeInTheDocument();
+  });
+});
+
+describe('AppLayout auth guard', () => {
+  it('redirects to /login when no authenticated user', () => {
+    vi.mocked(useAuth).mockReturnValue({ user: null, loading: false, error: null });
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <Routes>
+          <Route path="/" element={<AppLayout />}>
+            <Route path="dashboard" element={<div>Dashboard</div>} />
+          </Route>
+          <Route path="/login" element={<div>כניסה</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    expect(screen.getByText('כניסה')).toBeInTheDocument();
+  });
+
+  it('renders the app shell when user is authenticated', () => {
+    const mockUser: User = { id: 1, username: 'uri', full_name: 'Uri Cohen', email: null, role: 'Manager', is_active: true };
+    vi.mocked(useAuth).mockReturnValue({ user: mockUser, loading: false, error: null });
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <Routes>
+          <Route path="/" element={<AppLayout />}>
+            <Route path="dashboard" element={<div>תוכן לוח בקרה</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    );
+    expect(screen.getByText('תוכן לוח בקרה')).toBeInTheDocument();
   });
 });

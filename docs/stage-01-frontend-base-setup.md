@@ -28,7 +28,7 @@ frontend/
 │   │   ├── LoadingSpinner.tsx
 │   │   └── ErrorMessage.tsx
 │   ├── layouts/             # App shell layout
-│   │   ├── AppLayout.tsx    # Wraps all authenticated pages
+│   │   ├── AppLayout.tsx    # Wraps all authenticated pages; redirects to /login if unauthenticated
 │   │   ├── Header.tsx       # Top bar with logo, user info, logout
 │   │   └── Sidebar.tsx      # Hebrew RTL navigation sidebar
 │   ├── pages/               # One file per route
@@ -51,8 +51,9 @@ frontend/
 │   ├── tests/
 │   │   ├── setup.ts         # jest-dom import
 │   │   ├── App.test.tsx     # App renders + login form
+│   │   ├── auth.test.ts     # auth service: login/logout/getCurrentUser/isAuthenticated
 │   │   ├── routing.test.tsx # All page routes render Hebrew headings
-│   │   └── layout.test.tsx  # Sidebar/Header Hebrew labels & role gating
+│   │   └── layout.test.tsx  # Sidebar/Header Hebrew labels & role gating; AppLayout auth guard
 │   ├── App.tsx              # BrowserRouter + Routes
 │   ├── main.tsx             # React root mount
 │   └── index.css            # Tailwind + global RTL body direction
@@ -66,9 +67,11 @@ frontend/
 ## Key design decisions
 
 - **RTL by default**: `body { direction: rtl }` is set globally in `index.css`; the layout also passes `dir="rtl"` explicitly.
-- **JWT via sessionStorage**: `apiClient.ts` attaches the token on every request and redirects to `/login` on 401.
+- **JWT via sessionStorage**: `apiClient.ts` attaches the token on every request and redirects to `/login` on 401. Both `access_token` and `current_user` are cleared on logout or 401.
+- **User data from login response**: After a successful login the backend returns `{ token, user_id, role, full_name }`. The auth service stores this as a `User` object in `sessionStorage` under `current_user`. `getCurrentUser()` reads from sessionStorage — no separate `/me` endpoint is required.
 - **Role-gated sidebar**: Manager-only pages (Reports, User Management) are hidden in the sidebar for Secretary/Mechanic.
-- **Dev proxy**: Vite proxies `/api/*` → `http://localhost:8000` so the backend is called without CORS during development.
+- **Auth guard in AppLayout**: `AppLayout` redirects unauthenticated users to `/login` before rendering any page. Direct URL access to authenticated routes is blocked.
+- **Dev proxy**: Vite proxies `/api/*` → `http://localhost:8000` (no path rewriting — the backend includes the `/api` prefix in all its route declarations).
 
 ---
 
@@ -89,8 +92,9 @@ The backend must be running on port 8000 for API calls to work.
 | File | What is tested |
 |------|---------------|
 | `App.test.tsx` | App renders, login page shows Hebrew form, submit button label |
+| `auth.test.ts` | login stores token + user in sessionStorage; getCurrentUser reads from sessionStorage; logout clears both; isAuthenticated |
 | `routing.test.tsx` | All 9 route components render with correct Hebrew headings |
-| `layout.test.tsx` | Sidebar shows Hebrew nav items; role gating hides/shows Manager pages; Header shows user name and Hebrew role badge |
+| `layout.test.tsx` | Sidebar shows Hebrew nav items; role gating hides/shows Manager pages; Header shows user name and Hebrew role badge; AppLayout redirects unauthenticated users |
 
 Run tests:
 
@@ -106,8 +110,9 @@ npm run test:watch  # watch mode
 
 - [ ] `npm run dev` starts without errors
 - [ ] Navigating to `/login` shows the Hebrew login form
+- [ ] Navigating to `/dashboard` without logging in redirects back to `/login`
 - [ ] Navigating to `/dashboard` after login shows the sidebar with all Hebrew nav items
 - [ ] Manager role sees Reports and User Management; Mechanic/Secretary do not
-- [ ] All 18 unit tests pass (`npm test`)
+- [ ] All 27 unit tests pass (`npm test`)
 - [ ] `npm run build` completes without TypeScript errors
 - [ ] No console errors in the browser on any route
