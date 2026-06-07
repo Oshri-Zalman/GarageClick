@@ -21,7 +21,7 @@ export default function Header({ userName, userRole }: Props) {
   };
 
   return (
-    <header className="flex items-center justify-between bg-blue-700 px-6 py-3 text-white shadow-md">
+    <header className="flex items-center justify-between bg-amber-700 px-6 py-3 text-white shadow-md">
       <div className="flex items-center gap-3">
         <span className="text-xl font-bold tracking-wide">🔧 GarageClick</span>
       </div>
@@ -30,14 +30,14 @@ export default function Header({ userName, userRole }: Props) {
           <span className="text-sm">
             {userName}
             {userRole && (
-              <span className="mr-2 rounded-full bg-blue-500 px-2 py-0.5 text-xs">
+              <span className="mr-2 rounded-full bg-amber-600 px-2 py-0.5 text-xs">
                 {ROLE_LABELS[userRole] ?? userRole}
               </span>
             )}
           </span>
           <button
             onClick={handleLogout}
-            className="rounded-md bg-blue-800 px-3 py-1.5 text-sm hover:bg-blue-900 transition-colors"
+            className="rounded-md bg-amber-800 px-3 py-1.5 text-sm hover:bg-amber-900 transition-colors"
           >
             יציאה
           </button>

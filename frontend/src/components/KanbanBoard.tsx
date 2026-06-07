@@ -112,12 +112,13 @@ export default function KanbanBoard({ user }: Props) {
         aria-label="סינון לפי סטטוס"
         className="mb-4 flex flex-wrap gap-2"
       >
-        <FilterButton active={filter === 'all'} onClick={() => setFilter('all')}>
+        <FilterButton value="all" active={filter === 'all'} onClick={() => setFilter('all')}>
           הכל
         </FilterButton>
         {STATUS_ORDER.map((status) => (
           <FilterButton
             key={status}
+            value={status}
             active={filter === status}
             onClick={() => setFilter(status)}
           >
@@ -166,23 +167,35 @@ export default function KanbanBoard({ user }: Props) {
   );
 }
 
+// Active filter styling matches each status' column/badge colors so the filter
+// reads as "the same thing" as the column it selects. "הכל" keeps the neutral
+// warm accent.
+const ACTIVE_FILTER_STYLES: Record<Filter, string> = {
+  all: 'bg-amber-600 text-white border border-amber-600',
+  Pending: 'bg-amber-100 text-amber-800 border border-amber-400',
+  'In Progress': 'bg-orange-200 text-orange-900 border border-orange-400',
+  Completed: 'bg-green-100 text-green-800 border border-green-400',
+};
+
+const INACTIVE_FILTER_STYLE =
+  'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100';
+
 interface FilterButtonProps {
+  value: Filter;
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
 }
 
-function FilterButton({ active, onClick, children }: FilterButtonProps) {
+function FilterButton({ value, active, onClick, children }: FilterButtonProps) {
   return (
     <button
       type="button"
       aria-pressed={active}
       onClick={onClick}
       className={
-        'rounded-full px-4 py-1.5 text-sm font-medium transition-colors ' +
-        (active
-          ? 'bg-amber-600 text-white'
-          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100')
+        'rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ' +
+        (active ? ACTIVE_FILTER_STYLES[value] : INACTIVE_FILTER_STYLE)
       }
     >
       {children}
