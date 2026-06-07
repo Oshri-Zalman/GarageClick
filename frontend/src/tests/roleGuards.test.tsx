@@ -49,6 +49,13 @@ describe('Manager access', () => {
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'ניהול משתמשים' })).toBeInTheDocument();
   });
+
+  it('can open My Tickets (own/assigned tickets)', async () => {
+    loginAs('Manager');
+    goTo('/my-tickets');
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'הכרטיסים שלי' })).toBeInTheDocument();
+  });
 });
 
 describe('Secretary access', () => {
@@ -84,19 +91,20 @@ describe('Secretary access', () => {
 });
 
 describe('Mechanic access', () => {
-  it('lands on Kanban with My Tickets and no restricted nav items', async () => {
+  it('lands on Kanban with My Tickets and New Ticket, and no restricted nav items', async () => {
     loginAs('Mechanic');
     goTo('/kanban');
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: 'לוח קנבן' })).toBeInTheDocument();
     expect(screen.getByText('הכרטיסים שלי')).toBeInTheDocument();
+    // Mechanics can always open a new ticket (on themselves).
+    expect(screen.getByText('קריאה חדשה')).toBeInTheDocument();
     expect(screen.queryByText('מלאי חלקים')).not.toBeInTheDocument();
     expect(screen.queryByText('דוחות')).not.toBeInTheDocument();
     expect(screen.queryByText('ניהול משתמשים')).not.toBeInTheDocument();
     expect(screen.queryByText('לוח בקרה')).not.toBeInTheDocument();
-    // New Ticket is gated behind the (default-off) feature flag.
-    expect(screen.queryByText('קריאה חדשה')).not.toBeInTheDocument();
+    expect(screen.queryByText('לקוחות ורכבים')).not.toBeInTheDocument();
   });
 
   it('can open the My Tickets page', async () => {
@@ -104,6 +112,13 @@ describe('Mechanic access', () => {
     goTo('/my-tickets');
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'הכרטיסים שלי' })).toBeInTheDocument();
+  });
+
+  it('can open the New Ticket page', async () => {
+    loginAs('Mechanic');
+    goTo('/tickets/new');
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'קריאה חדשה' })).toBeInTheDocument();
   });
 
   it('is redirected away from Parts Inventory to Kanban', async () => {

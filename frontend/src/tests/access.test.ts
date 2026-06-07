@@ -6,7 +6,6 @@ const ROLES: Role[] = ['Manager', 'Secretary', 'Mechanic'];
 describe('role access config', () => {
   afterEach(() => {
     vi.resetModules();
-    vi.doUnmock('../config/features');
   });
 
   it('Manager can access every restricted page', async () => {
@@ -27,15 +26,30 @@ describe('role access config', () => {
     expect(canAccess('Secretary', '/manager-dashboard')).toBe(false);
   });
 
-  it('Mechanic can access Kanban and My Tickets only among the restricted set', async () => {
+  it('Mechanic can access Kanban, My Tickets and New Ticket only among the restricted set', async () => {
     const { canAccess } = await import('../config/access');
     expect(canAccess('Mechanic', '/kanban')).toBe(true);
     expect(canAccess('Mechanic', '/my-tickets')).toBe(true);
+    expect(canAccess('Mechanic', '/tickets/new')).toBe(true);
     expect(canAccess('Mechanic', '/dashboard')).toBe(false);
     expect(canAccess('Mechanic', '/customers')).toBe(false);
     expect(canAccess('Mechanic', '/parts')).toBe(false);
     expect(canAccess('Mechanic', '/reports')).toBe(false);
     expect(canAccess('Mechanic', '/users')).toBe(false);
+  });
+
+  it('all roles can create a new ticket', async () => {
+    const { canAccess } = await import('../config/access');
+    expect(canAccess('Manager', '/tickets/new')).toBe(true);
+    expect(canAccess('Secretary', '/tickets/new')).toBe(true);
+    expect(canAccess('Mechanic', '/tickets/new')).toBe(true);
+  });
+
+  it('Manager can also access My Tickets, but Secretary cannot', async () => {
+    const { canAccess } = await import('../config/access');
+    expect(canAccess('Manager', '/my-tickets')).toBe(true);
+    expect(canAccess('Mechanic', '/my-tickets')).toBe(true);
+    expect(canAccess('Secretary', '/my-tickets')).toBe(false);
   });
 
   it('home path routes mechanics to kanban and others to dashboard', async () => {
@@ -45,38 +59,27 @@ describe('role access config', () => {
     expect(homePathForRole('Mechanic')).toBe('/kanban');
   });
 
-  it('only my-tickets and manager pages are role-exclusive in the nav', async () => {
+  it('exposes the expected nav items per role', async () => {
     const { navItemsForRole } = await import('../config/access');
+
     const managerPaths = navItemsForRole('Manager').map((i) => i.to);
     expect(managerPaths).toContain('/reports');
     expect(managerPaths).toContain('/users');
     expect(managerPaths).toContain('/manager-dashboard');
-    expect(managerPaths).not.toContain('/my-tickets');
+    expect(managerPaths).toContain('/my-tickets');
+
+    const secretaryPaths = navItemsForRole('Secretary').map((i) => i.to);
+    expect(secretaryPaths).toContain('/parts');
+    expect(secretaryPaths).toContain('/tickets/new');
+    expect(secretaryPaths).not.toContain('/my-tickets');
+    expect(secretaryPaths).not.toContain('/reports');
 
     const mechanicPaths = navItemsForRole('Mechanic').map((i) => i.to);
     expect(mechanicPaths).toContain('/kanban');
     expect(mechanicPaths).toContain('/my-tickets');
+    expect(mechanicPaths).toContain('/tickets/new');
     expect(mechanicPaths).not.toContain('/parts');
-  });
-
-  describe('mechanic ticket creation feature flag', () => {
-    it('hides New Ticket from mechanics when the flag is off (default)', async () => {
-      const { canAccess, navItemsForRole } = await import('../config/access');
-      expect(canAccess('Mechanic', '/tickets/new')).toBe(false);
-      expect(navItemsForRole('Mechanic').map((i) => i.to)).not.toContain('/tickets/new');
-      // Managers and secretaries always keep ticket creation.
-      expect(canAccess('Manager', '/tickets/new')).toBe(true);
-      expect(canAccess('Secretary', '/tickets/new')).toBe(true);
-    });
-
-    it('exposes New Ticket to mechanics when the flag is on', async () => {
-      vi.doMock('../config/features', () => ({
-        features: { enableMechanicTicketCreation: true },
-      }));
-      const { canAccess, navItemsForRole } = await import('../config/access');
-      expect(canAccess('Mechanic', '/tickets/new')).toBe(true);
-      expect(navItemsForRole('Mechanic').map((i) => i.to)).toContain('/tickets/new');
-    });
+    expect(mechanicPaths).not.toContain('/customers');
   });
 
   it('shared/unknown routes are open to all signed-in roles', async () => {

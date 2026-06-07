@@ -1,5 +1,4 @@
 import type { Role } from '../types';
-import { features } from './features';
 
 // Single source of truth for role-based access. Both the sidebar navigation and
 // the route guards derive their behaviour from the helpers here so the two can
@@ -36,13 +35,14 @@ export function allowedRoles(path: string): Role[] {
     case '/parts':
       return ['Manager', 'Secretary'];
     case '/kanban':
-      return ['Manager', 'Secretary', 'Mechanic'];
     case '/tickets/new':
-      return features.enableMechanicTicketCreation
-        ? ['Manager', 'Secretary', 'Mechanic']
-        : ['Manager', 'Secretary'];
+      // Kanban and ticket creation are available to all roles, including
+      // mechanics (a mechanic always opens tickets on themselves).
+      return ['Manager', 'Secretary', 'Mechanic'];
     case '/my-tickets':
-      return ['Mechanic'];
+      // Mechanics live here; managers also open/own tickets on themselves and
+      // must be able to see their own.
+      return ['Manager', 'Mechanic'];
     case '/manager-dashboard':
     case '/reports':
     case '/users':
