@@ -43,7 +43,7 @@ describe('KanbanPage', () => {
 
   it('shows the refined page title', () => {
     renderPage();
-    expect(screen.getByRole('heading', { name: 'כרטיסי עבודה' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'לוח עבודה' })).toBeInTheDocument();
   });
 
   it('renders a prominent CTA that links to the New Ticket route', () => {
