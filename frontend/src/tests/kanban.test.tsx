@@ -80,50 +80,50 @@ describe('KanbanBoard — layout', () => {
   it('renders the three status columns', async () => {
     renderBoard(makeUser('Manager'));
 
-    expect(await screen.findByRole('region', { name: 'ממתין' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'ממתין לטיפול' })).toBeInTheDocument();
     expect(region('בטיפול')).toBeInTheDocument();
     expect(region('הושלם')).toBeInTheDocument();
   });
 
   it('places each ticket in the column matching its status', async () => {
     renderBoard(makeUser('Manager'));
-    await screen.findByRole('region', { name: 'ממתין' });
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
 
-    expect(within(region('ממתין')).getByText('11-111-11')).toBeInTheDocument();
-    expect(within(region('ממתין')).getByText('44-444-44')).toBeInTheDocument();
+    expect(within(region('ממתין לטיפול')).getByText('11-111-11')).toBeInTheDocument();
+    expect(within(region('ממתין לטיפול')).getByText('44-444-44')).toBeInTheDocument();
     expect(within(region('בטיפול')).getByText('22-222-22')).toBeInTheDocument();
     expect(within(region('הושלם')).getByText('33-333-33')).toBeInTheDocument();
   });
 
   it('shows the correct count in each column counter', async () => {
     renderBoard(makeUser('Manager'));
-    await screen.findByRole('region', { name: 'ממתין' });
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
 
-    expect(within(region('ממתין')).getByLabelText('2 קריאות')).toBeInTheDocument();
+    expect(within(region('ממתין לטיפול')).getByLabelText('2 קריאות')).toBeInTheDocument();
     expect(within(region('בטיפול')).getByLabelText('1 קריאות')).toBeInTheDocument();
     expect(within(region('הושלם')).getByLabelText('1 קריאות')).toBeInTheDocument();
   });
 
   it('shows each card details: plate, description, mechanic name and status badge', async () => {
     renderBoard(makeUser('Manager'));
-    await screen.findByRole('region', { name: 'ממתין' });
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
 
-    const card = within(region('ממתין')).getByText('11-111-11').closest('article')!;
+    const card = within(region('ממתין לטיפול')).getByText('11-111-11').closest('article')!;
     expect(within(card).getByText('תיאור')).toBeInTheDocument();
     expect(within(card).getByText('מכונאי: דוד')).toBeInTheDocument();
-    expect(within(card).getByText('ממתין')).toBeInTheDocument();
+    expect(within(card).getByText('ממתין לטיפול')).toBeInTheDocument();
   });
 });
 
 describe('KanbanBoard — status filter', () => {
   it('shows only the selected status column when filtering', async () => {
     renderBoard(makeUser('Manager'));
-    await screen.findByRole('region', { name: 'ממתין' });
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
 
     await userEvent.click(screen.getByRole('button', { name: 'בטיפול' }));
 
     expect(region('בטיפול')).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'ממתין' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'ממתין לטיפול' })).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'הושלם' })).not.toBeInTheDocument();
     expect(screen.getByText('22-222-22')).toBeInTheDocument();
     expect(screen.queryByText('11-111-11')).not.toBeInTheDocument();
@@ -131,13 +131,13 @@ describe('KanbanBoard — status filter', () => {
 
   it('returns to all columns when selecting "הכל"', async () => {
     renderBoard(makeUser('Manager'));
-    await screen.findByRole('region', { name: 'ממתין' });
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
 
     await userEvent.click(screen.getByRole('button', { name: 'הושלם' }));
-    expect(screen.queryByRole('region', { name: 'ממתין' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'ממתין לטיפול' })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'הכל' }));
-    expect(region('ממתין')).toBeInTheDocument();
+    expect(region('ממתין לטיפול')).toBeInTheDocument();
     expect(region('בטיפול')).toBeInTheDocument();
     expect(region('הושלם')).toBeInTheDocument();
   });
@@ -149,15 +149,15 @@ describe('KanbanBoard — status transitions', () => {
       makeTicket({ id: 1, status: 'In Progress', license_plate: '11-111-11' })
     );
     renderBoard(makeUser('Mechanic', MECHANIC_DAVID_ID));
-    await screen.findByRole('region', { name: 'ממתין' });
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
 
-    await userEvent.click(screen.getByRole('button', { name: 'קבל' }));
+    await userEvent.click(screen.getByRole('button', { name: 'התחל טיפול' }));
 
     expect(updateTicketStatus).toHaveBeenCalledWith(1, 'In Progress', false);
     await waitFor(() =>
       expect(within(region('בטיפול')).getByText('11-111-11')).toBeInTheDocument()
     );
-    expect(within(region('ממתין')).queryByText('11-111-11')).not.toBeInTheDocument();
+    expect(within(region('ממתין לטיפול')).queryByText('11-111-11')).not.toBeInTheDocument();
   });
 
   it('"סיים טיפול" requires explicit confirmation before completing', async () => {
@@ -165,7 +165,7 @@ describe('KanbanBoard — status transitions', () => {
       makeTicket({ id: 2, status: 'Completed', license_plate: '22-222-22' })
     );
     renderBoard(makeUser('Mechanic', MECHANIC_DAVID_ID));
-    await screen.findByRole('region', { name: 'ממתין' });
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
 
     await userEvent.click(screen.getByRole('button', { name: 'סיים טיפול' }));
 
@@ -181,7 +181,7 @@ describe('KanbanBoard — status transitions', () => {
 
   it('does not complete a ticket if the confirmation is cancelled', async () => {
     renderBoard(makeUser('Mechanic', MECHANIC_DAVID_ID));
-    await screen.findByRole('region', { name: 'ממתין' });
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
 
     await userEvent.click(screen.getByRole('button', { name: 'סיים טיפול' }));
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'ביטול' }));
@@ -201,7 +201,7 @@ describe('KanbanBoard — status transitions', () => {
 describe('KanbanBoard — role-based visibility', () => {
   it('Manager sees all tickets, including other mechanics', async () => {
     renderBoard(makeUser('Manager'));
-    await screen.findByRole('region', { name: 'ממתין' });
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
 
     for (const plate of ['11-111-11', '22-222-22', '33-333-33', '44-444-44']) {
       expect(screen.getByText(plate)).toBeInTheDocument();
@@ -210,7 +210,7 @@ describe('KanbanBoard — role-based visibility', () => {
 
   it('Secretary sees all tickets, including other mechanics', async () => {
     renderBoard(makeUser('Secretary'));
-    await screen.findByRole('region', { name: 'ממתין' });
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
 
     for (const plate of ['11-111-11', '22-222-22', '33-333-33', '44-444-44']) {
       expect(screen.getByText(plate)).toBeInTheDocument();
@@ -219,7 +219,7 @@ describe('KanbanBoard — role-based visibility', () => {
 
   it('Mechanic sees only tickets assigned to them', async () => {
     renderBoard(makeUser('Mechanic', MECHANIC_DAVID_ID));
-    await screen.findByRole('region', { name: 'ממתין' });
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
 
     expect(screen.getByText('11-111-11')).toBeInTheDocument();
     expect(screen.getByText('22-222-22')).toBeInTheDocument();
@@ -230,14 +230,14 @@ describe('KanbanBoard — role-based visibility', () => {
 
   it('Mechanic cannot act on tickets that are not assigned to them', async () => {
     renderBoard(makeUser('Mechanic', MECHANIC_DAVID_ID));
-    await screen.findByRole('region', { name: 'ממתין' });
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
 
     // Only their own Pending ticket exposes a "קבל" button; the other
     // mechanic's Pending ticket is neither shown nor actionable.
-    const acceptButtons = screen.getAllByRole('button', { name: 'קבל' });
+    const acceptButtons = screen.getAllByRole('button', { name: 'התחל טיפול' });
     expect(acceptButtons).toHaveLength(1);
-    const card = within(region('ממתין')).getByText('11-111-11').closest('article')!;
-    expect(within(card).getByRole('button', { name: 'קבל' })).toBeInTheDocument();
+    const card = within(region('ממתין לטיפול')).getByText('11-111-11').closest('article')!;
+    expect(within(card).getByRole('button', { name: 'התחל טיפול' })).toBeInTheDocument();
   });
 });
 
@@ -266,6 +266,6 @@ describe('KanbanBoard — states', () => {
     // Retry re-fetches and renders the board.
     vi.mocked(listTickets).mockResolvedValue(ALL_TICKETS);
     await userEvent.click(screen.getByRole('button', { name: 'נסה שוב' }));
-    expect(await screen.findByRole('region', { name: 'ממתין' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'ממתין לטיפול' })).toBeInTheDocument();
   });
 });

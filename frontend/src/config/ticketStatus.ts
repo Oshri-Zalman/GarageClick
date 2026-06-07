@@ -9,7 +9,7 @@ export const STATUS_ORDER: TicketStatus[] = ['Pending', 'In Progress', 'Complete
 
 // Hebrew labels shown in column headers and status badges.
 export const STATUS_LABELS: Record<TicketStatus, string> = {
-  Pending: 'ממתין',
+  Pending: 'ממתין לטיפול',
   'In Progress': 'בטיפול',
   Completed: 'הושלם',
 };
@@ -24,7 +24,7 @@ export const NEXT_STATUS: Record<TicketStatus, TicketStatus | null> = {
 // Hebrew label of the action button shown on a card, or null when there is no
 // action (Completed cards have no buttons).
 export const ACTION_LABELS: Record<TicketStatus, string | null> = {
-  Pending: 'קבל',
+  Pending: 'התחל טיפול',
   'In Progress': 'סיים טיפול',
   Completed: null,
 };

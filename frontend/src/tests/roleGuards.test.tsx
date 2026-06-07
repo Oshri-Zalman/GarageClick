@@ -103,7 +103,7 @@ describe('Mechanic access', () => {
     goTo('/kanban');
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'לוח קנבן' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'כרטיסי עבודה' })).toBeInTheDocument();
     expect(screen.getByText('הכרטיסים שלי')).toBeInTheDocument();
     // Mechanics can always open a new ticket (on themselves).
     expect(screen.getByText('קריאה חדשה')).toBeInTheDocument();
@@ -132,7 +132,7 @@ describe('Mechanic access', () => {
     loginAs('Mechanic');
     goTo('/parts');
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'לוח קנבן' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'כרטיסי עבודה' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'מלאי חלקים' })).not.toBeInTheDocument();
   });
 
@@ -140,7 +140,7 @@ describe('Mechanic access', () => {
     loginAs('Mechanic');
     goTo('/reports');
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'לוח קנבן' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'כרטיסי עבודה' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'דוחות מנהל' })).not.toBeInTheDocument();
   });
 
@@ -148,7 +148,7 @@ describe('Mechanic access', () => {
     loginAs('Mechanic');
     goTo('/users');
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'לוח קנבן' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'כרטיסי עבודה' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'ניהול משתמשים' })).not.toBeInTheDocument();
   });
 });

@@ -33,7 +33,7 @@ export default function TicketCard({ ticket, canUpdate, updating, onAdvance }: P
           type="button"
           onClick={onAdvance}
           disabled={updating}
-          className="w-full rounded-md bg-blue-600 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+          className="w-full rounded-md bg-amber-600 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
         >
           {updating ? 'מעדכן...' : actionLabel}
         </button>

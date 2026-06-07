@@ -44,7 +44,7 @@ describe('Route placeholders render', () => {
 
   it('/kanban renders KanbanPage in Hebrew', () => {
     renderAt('/kanban', <KanbanPage />);
-    expect(screen.getByRole('heading', { name: 'לוח קנבן' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'כרטיסי עבודה' })).toBeInTheDocument();
   });
 
   it('/tickets/new renders NewTicketPage in Hebrew', () => {

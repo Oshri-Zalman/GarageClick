@@ -181,7 +181,7 @@ function FilterButton({ active, onClick, children }: FilterButtonProps) {
       className={
         'rounded-full px-4 py-1.5 text-sm font-medium transition-colors ' +
         (active
-          ? 'bg-blue-600 text-white'
+          ? 'bg-amber-600 text-white'
           : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100')
       }
     >

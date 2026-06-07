@@ -3,7 +3,7 @@ import { STATUS_LABELS } from '../config/ticketStatus';
 
 const STYLES: Record<TicketStatus, string> = {
   Pending: 'bg-amber-100 text-amber-800',
-  'In Progress': 'bg-blue-100 text-blue-800',
+  'In Progress': 'bg-orange-200 text-orange-900',
   Completed: 'bg-green-100 text-green-800',
 };
 
