@@ -1,7 +1,14 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import App from '../App';
 import type { Role } from '../types';
+
+// The Kanban board fetches tickets on mount; stub the service so these auth/route
+// integration tests never hit the network and only assert on navigation.
+vi.mock('../services/tickets', () => ({
+  listTickets: vi.fn().mockResolvedValue([]),
+  updateTicketStatus: vi.fn(),
+}));
 
 // These are full-app integration tests: they exercise the real auth service
 // (backed by sessionStorage), the route guards, and the sidebar together.
@@ -96,7 +103,7 @@ describe('Mechanic access', () => {
     goTo('/kanban');
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'לוח קנבן' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'לוח עבודה' })).toBeInTheDocument();
     expect(screen.getByText('הכרטיסים שלי')).toBeInTheDocument();
     // Mechanics can always open a new ticket (on themselves).
     expect(screen.getByText('קריאה חדשה')).toBeInTheDocument();
@@ -125,7 +132,7 @@ describe('Mechanic access', () => {
     loginAs('Mechanic');
     goTo('/parts');
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'לוח קנבן' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'לוח עבודה' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'מלאי חלקים' })).not.toBeInTheDocument();
   });
 
@@ -133,7 +140,7 @@ describe('Mechanic access', () => {
     loginAs('Mechanic');
     goTo('/reports');
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'לוח קנבן' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'לוח עבודה' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'דוחות מנהל' })).not.toBeInTheDocument();
   });
 
@@ -141,7 +148,7 @@ describe('Mechanic access', () => {
     loginAs('Mechanic');
     goTo('/users');
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'לוח קנבן' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'לוח עבודה' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'ניהול משתמשים' })).not.toBeInTheDocument();
   });
 });

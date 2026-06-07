@@ -15,6 +15,10 @@ vi.mock('../services/auth', () => ({
   login: vi.fn(),
   logout: vi.fn(),
   isAuthenticated: () => false,
+  // KanbanPage reads the current user via useAuth → getStoredUser. With no user
+  // the board is not rendered, so this placeholder route test only sees the
+  // page heading.
+  getStoredUser: () => null,
 }));
 
 function renderAt(path: string, element: React.ReactElement) {
@@ -40,7 +44,7 @@ describe('Route placeholders render', () => {
 
   it('/kanban renders KanbanPage in Hebrew', () => {
     renderAt('/kanban', <KanbanPage />);
-    expect(screen.getByRole('heading', { name: 'לוח קנבן' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'לוח עבודה' })).toBeInTheDocument();
   });
 
   it('/tickets/new renders NewTicketPage in Hebrew', () => {

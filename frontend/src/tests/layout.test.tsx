@@ -24,7 +24,7 @@ describe('Sidebar Hebrew navigation', () => {
       </MemoryRouter>
     );
     expect(screen.getByText('לוח בקרה')).toBeInTheDocument();
-    expect(screen.getByText('לוח קנבן')).toBeInTheDocument();
+    expect(screen.getByText('לוח עבודה')).toBeInTheDocument();
     expect(screen.getByText('קריאה חדשה')).toBeInTheDocument();
     expect(screen.getByText('לקוחות ורכבים')).toBeInTheDocument();
     expect(screen.getByText('מלאי חלקים')).toBeInTheDocument();
