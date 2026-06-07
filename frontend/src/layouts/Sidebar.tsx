@@ -1,30 +1,13 @@
 import { NavLink } from 'react-router-dom';
-
-interface NavItem {
-  to: string;
-  label: string;
-  icon: string;
-  roles?: string[];
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { to: '/dashboard', label: 'לוח בקרה', icon: '🏠' },
-  { to: '/kanban', label: 'לוח קנבן', icon: '📋' },
-  { to: '/tickets/new', label: 'קריאה חדשה', icon: '➕' },
-  { to: '/customers', label: 'לקוחות ורכבים', icon: '🚗' },
-  { to: '/parts', label: 'מלאי חלקים', icon: '🔩', roles: ['Manager', 'Secretary'] },
-  { to: '/reports', label: 'דוחות', icon: '📊', roles: ['Manager'] },
-  { to: '/users', label: 'ניהול משתמשים', icon: '👥', roles: ['Manager'] },
-];
+import type { Role } from '../types';
+import { navItemsForRole } from '../config/access';
 
 interface Props {
-  userRole?: string;
+  userRole?: Role;
 }
 
 export default function Sidebar({ userRole }: Props) {
-  const visibleItems = NAV_ITEMS.filter(
-    (item) => !item.roles || (userRole && item.roles.includes(userRole))
-  );
+  const visibleItems = userRole ? navItemsForRole(userRole) : [];
 
   return (
     <nav

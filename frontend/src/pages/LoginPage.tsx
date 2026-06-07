@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { login } from '../services/auth';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { login, getStoredUser, isAuthenticated } from '../services/auth';
+import { homePathForRole } from '../config/access';
 import ErrorMessage from '../components/ErrorMessage';
 
 export default function LoginPage() {
@@ -10,13 +11,21 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Already signed in? Don't show the login form — send them to their home page.
+  if (isAuthenticated()) {
+    const user = getStoredUser();
+    if (user) {
+      return <Navigate to={homePathForRole(user.role)} replace />;
+    }
+  }
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      await login(username, password);
-      navigate('/dashboard');
+      const auth = await login(username, password);
+      navigate(homePathForRole(auth.role));
     } catch {
       setError('שם משתמש או סיסמה שגויים');
     } finally {

@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
 import type { User } from '../types';
-import { getCurrentUser, isAuthenticated } from '../services/auth';
+import { getStoredUser } from '../services/auth';
 
 interface AuthState {
   user: User | null;
@@ -8,23 +7,8 @@ interface AuthState {
   error: string | null;
 }
 
+// The current user is cached synchronously in session storage at login, so there
+// is no asynchronous fetch to wait on — we read it directly on every render.
 export function useAuth(): AuthState {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    loading: true,
-    error: null,
-  });
-
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      setState({ user: null, loading: false, error: null });
-      return;
-    }
-
-    getCurrentUser()
-      .then((user) => setState({ user, loading: false, error: null }))
-      .catch(() => setState({ user: null, loading: false, error: 'שגיאה בטעינת המשתמש' }));
-  }, []);
-
-  return state;
+  return { user: getStoredUser(), loading: false, error: null };
 }
