@@ -15,6 +15,10 @@ vi.mock('../services/auth', () => ({
   login: vi.fn(),
   logout: vi.fn(),
   isAuthenticated: () => false,
+  // KanbanPage reads the current user via useAuth → getStoredUser. With no user
+  // the board is not rendered, so this placeholder route test only sees the
+  // page heading.
+  getStoredUser: () => null,
 }));
 
 function renderAt(path: string, element: React.ReactElement) {

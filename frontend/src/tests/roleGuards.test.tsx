@@ -1,7 +1,14 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import App from '../App';
 import type { Role } from '../types';
+
+// The Kanban board fetches tickets on mount; stub the service so these auth/route
+// integration tests never hit the network and only assert on navigation.
+vi.mock('../services/tickets', () => ({
+  listTickets: vi.fn().mockResolvedValue([]),
+  updateTicketStatus: vi.fn(),
+}));
 
 // These are full-app integration tests: they exercise the real auth service
 // (backed by sessionStorage), the route guards, and the sidebar together.

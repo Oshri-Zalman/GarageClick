@@ -47,6 +47,37 @@ export interface Ticket {
   updated_at: string;
 }
 
+// The denormalised ticket shape returned by GET /api/tickets (each list item
+// joins in the vehicle, customer, and assigned mechanic). The Kanban board
+// renders directly from this, so it carries more than the bare `Ticket` row.
+export interface KanbanTicket {
+  id: number;
+  ticket_number: string;
+  vehicle_id: number | null;
+  created_by_id: number;
+  assigned_mechanic_id: number;
+  description: string;
+  status: TicketStatus;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  license_plate: string;
+  manufacturer: string;
+  model: string;
+  year: number | null;
+  customer_name: string;
+  customer_phone: string;
+  mechanic_name: string | null;
+}
+
+// Standard paginated envelope used by all list endpoints (TDD §7).
+export interface Paginated<T> {
+  items: T[];
+  page: number;
+  limit: number;
+  total: number;
+}
+
 export interface AuthToken {
   token: string;
   user_id: number;
