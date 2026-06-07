@@ -14,7 +14,7 @@ export interface NavItem {
 // resolved through `allowedRoles` below, not duplicated here.
 const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard', label: 'לוח בקרה', icon: '🏠' },
-  { to: '/kanban', label: 'לוח קנבן', icon: '📋' },
+  { to: '/kanban', label: 'כרטיסי עבודה', icon: '📋' },
   { to: '/my-tickets', label: 'הכרטיסים שלי', icon: '🧾' },
   { to: '/tickets/new', label: 'קריאה חדשה', icon: '➕' },
   { to: '/customers', label: 'לקוחות ורכבים', icon: '🚗' },
