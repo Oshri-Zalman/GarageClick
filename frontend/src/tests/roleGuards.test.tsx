@@ -125,7 +125,9 @@ describe('Mechanic access', () => {
     loginAs('Mechanic');
     goTo('/tickets/new');
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'קריאה חדשה' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'פתיחת כרטיס עבודה חדש' })
+    ).toBeInTheDocument();
   });
 
   it('is redirected away from Parts Inventory to Kanban', async () => {

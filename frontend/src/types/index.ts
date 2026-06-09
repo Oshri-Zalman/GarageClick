@@ -78,6 +78,49 @@ export interface Paginated<T> {
   total: number;
 }
 
+// Result of GET /api/vehicles/search. The backend returns either the full
+// vehicle+owner payload (auto-fill, FR-2 option A) or { found: false }.
+export interface VehicleSearchHit {
+  vehicle_id: number;
+  license_plate: string;
+  manufacturer: string;
+  model: string;
+  year: number | null;
+  customer_id: number;
+  customer_name: string;
+  customer_phone: string;
+}
+
+// An assignable worker shown in the "assigned mechanic" dropdown. Only
+// Manager/Secretary pick one; a Mechanic is always assigned to themselves.
+export interface Mechanic {
+  id: number;
+  name: string;
+  role: Role;
+}
+
+// POST /api/tickets — scenario A (existing vehicle, by id).
+export interface CreateTicketExisting {
+  vehicle_id: number;
+  assigned_mechanic_id: number;
+  description: string;
+  estimated_completion_time?: string | null;
+  parts?: { part_id: number; quantity: number }[];
+}
+
+// POST /api/tickets — scenario B (new customer + new vehicle, by plate).
+export interface CreateTicketNew {
+  license_plate: string;
+  new_customer: { full_name: string; phone_number: string };
+  new_vehicle: { manufacturer: string; model: string; year: number | null };
+  assigned_mechanic_id: number;
+  description: string;
+  estimated_completion_time?: string | null;
+  parts?: { part_id: number; quantity: number }[];
+}
+
+export type CreateTicketPayload = CreateTicketExisting | CreateTicketNew;
+
 export interface AuthToken {
   token: string;
   user_id: number;
