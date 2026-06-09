@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import admin, auth, customers, parts, tickets, vehicles
+from .routers import admin, auth, customers, mechanics, parts, tickets, vehicles
 
 
 def create_app() -> FastAPI:
@@ -25,6 +25,7 @@ def create_app() -> FastAPI:
     app.include_router(tickets.router)
     app.include_router(parts.router)
     app.include_router(admin.router)
+    app.include_router(mechanics.router)
 
     return app
 

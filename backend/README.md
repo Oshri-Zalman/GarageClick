@@ -102,6 +102,7 @@ Bad input is rejected with `422` and a clear message instead of reaching the DB:
 | GET/PUT | `/api/vehicles`, `/api/vehicles/{id}` | see code | Read/update |
 | GET  | `/api/vehicles/{id}/tickets` | Manager, Secretary | Ticket history for a vehicle |
 | GET  | `/api/customers/{id}/tickets` | Manager, Secretary | Ticket history for a customer (all vehicles) |
+| GET  | `/api/mechanics` | Manager, Secretary | Active assignable users (Mechanic/Manager) for the "עובד מטפל" dropdown — minimal fields only |
 | POST | `/api/tickets` | all roles | Open a ticket (existing vehicle, or new customer+vehicle) |
 | PATCH| `/api/tickets/{id}/status` | all roles* | Status change via state machine |
 | GET  | `/api/tickets`, `/api/tickets/{id}` | all roles* | List / detail (Mechanic: own only) |
