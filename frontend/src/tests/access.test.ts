@@ -70,14 +70,15 @@ describe('role access config', () => {
 
     const secretaryPaths = navItemsForRole('Secretary').map((i) => i.to);
     expect(secretaryPaths).toContain('/parts');
-    expect(secretaryPaths).toContain('/tickets/new');
+    // New Ticket is opened from the Work Board modal, not a sidebar nav item.
+    expect(secretaryPaths).not.toContain('/tickets/new');
     expect(secretaryPaths).not.toContain('/my-tickets');
     expect(secretaryPaths).not.toContain('/reports');
 
     const mechanicPaths = navItemsForRole('Mechanic').map((i) => i.to);
     expect(mechanicPaths).toContain('/kanban');
     expect(mechanicPaths).toContain('/my-tickets');
-    expect(mechanicPaths).toContain('/tickets/new');
+    expect(mechanicPaths).not.toContain('/tickets/new');
     expect(mechanicPaths).not.toContain('/parts');
     expect(mechanicPaths).not.toContain('/customers');
   });
