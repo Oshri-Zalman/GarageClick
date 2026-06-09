@@ -105,8 +105,8 @@ describe('Mechanic access', () => {
 
     expect(await screen.findByRole('heading', { name: 'לוח עבודה' })).toBeInTheDocument();
     expect(screen.getByText('הכרטיסים שלי')).toBeInTheDocument();
-    // Mechanics can always open a new ticket (on themselves).
-    expect(screen.getByText('קריאה חדשה')).toBeInTheDocument();
+    // New Ticket is now opened from a Work Board modal, not a sidebar item.
+    expect(screen.queryByText('קריאה חדשה')).not.toBeInTheDocument();
     expect(screen.queryByText('מלאי חלקים')).not.toBeInTheDocument();
     expect(screen.queryByText('דוחות')).not.toBeInTheDocument();
     expect(screen.queryByText('ניהול משתמשים')).not.toBeInTheDocument();
@@ -125,7 +125,9 @@ describe('Mechanic access', () => {
     loginAs('Mechanic');
     goTo('/tickets/new');
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'קריאה חדשה' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'פתיחת כרטיס עבודה חדש' })
+    ).toBeInTheDocument();
   });
 
   it('is redirected away from Parts Inventory to Kanban', async () => {

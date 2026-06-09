@@ -15,11 +15,13 @@ vi.mock('../services/auth', () => ({
   login: vi.fn(),
   logout: vi.fn(),
   isAuthenticated: () => false,
-  // KanbanPage reads the current user via useAuth → getStoredUser. With no user
-  // the board is not rendered, so this placeholder route test only sees the
-  // page heading.
-  getStoredUser: () => null,
+  // Pages read the current user via useAuth → getStoredUser. KanbanPage still
+  // renders its heading with no user; NewTicketPage requires one, so that test
+  // overrides the return value below.
+  getStoredUser: vi.fn(() => null),
 }));
+
+import { getStoredUser } from '../services/auth';
 
 function renderAt(path: string, element: React.ReactElement) {
   return render(
@@ -48,8 +50,21 @@ describe('Route placeholders render', () => {
   });
 
   it('/tickets/new renders NewTicketPage in Hebrew', () => {
+    // NewTicketPage requires an authenticated user. A Mechanic skips the
+    // mechanic-roster fetch, keeping this a pure synchronous render check.
+    vi.mocked(getStoredUser).mockReturnValue({
+      id: 5,
+      username: 'david',
+      full_name: 'דוד',
+      email: null,
+      role: 'Mechanic',
+      is_active: true,
+    });
     renderAt('/tickets/new', <NewTicketPage />);
-    expect(screen.getByRole('heading', { name: 'קריאה חדשה' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'פתיחת כרטיס עבודה חדש' })
+    ).toBeInTheDocument();
+    vi.mocked(getStoredUser).mockReturnValue(null);
   });
 
   it('/customers renders CustomersPage in Hebrew', () => {

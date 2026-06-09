@@ -16,7 +16,8 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard', label: 'לוח בקרה', icon: '🏠' },
   { to: '/kanban', label: 'לוח עבודה', icon: '📋' },
   { to: '/my-tickets', label: 'הכרטיסים שלי', icon: '🧾' },
-  { to: '/tickets/new', label: 'קריאה חדשה', icon: '➕' },
+  // New Ticket is opened from a modal on the Work Board, not as a sidebar item.
+  // The /tickets/new route still exists (see allowedRoles) for direct access.
   { to: '/customers', label: 'לקוחות ורכבים', icon: '🚗' },
   { to: '/parts', label: 'מלאי חלקים', icon: '🔩' },
   { to: '/manager-dashboard', label: 'ניטור עובדים', icon: '📈' },

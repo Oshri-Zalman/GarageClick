@@ -1,9 +1,23 @@
 import apiClient from './apiClient';
-import type { KanbanTicket, Paginated, TicketStatus } from '../types';
+import type {
+  CreateTicketPayload,
+  KanbanTicket,
+  Paginated,
+  TicketStatus,
+} from '../types';
 
 interface ListParams {
   status?: TicketStatus;
   mechanic_id?: number;
+}
+
+// POST /api/tickets — opens a new work ticket. Accepts either the existing
+// vehicle payload (vehicle_id) or the new customer+vehicle payload
+// (license_plate + new_customer + new_vehicle). Returns the created ticket
+// joined with its vehicle/customer/mechanic, ready for the Kanban board.
+export async function createTicket(payload: CreateTicketPayload): Promise<KanbanTicket> {
+  const { data } = await apiClient.post<KanbanTicket>('/tickets', payload);
+  return data;
 }
 
 // GET /api/tickets — returns the flat list of tickets. The backend already

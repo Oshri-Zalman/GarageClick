@@ -25,9 +25,10 @@ describe('Sidebar Hebrew navigation', () => {
     );
     expect(screen.getByText('לוח בקרה')).toBeInTheDocument();
     expect(screen.getByText('לוח עבודה')).toBeInTheDocument();
-    expect(screen.getByText('קריאה חדשה')).toBeInTheDocument();
     expect(screen.getByText('לקוחות ורכבים')).toBeInTheDocument();
     expect(screen.getByText('מלאי חלקים')).toBeInTheDocument();
+    // New Ticket moved to a Work Board modal — no longer a sidebar item.
+    expect(screen.queryByText('קריאה חדשה')).not.toBeInTheDocument();
   });
 
   it('hides Manager-only and inventory items from Mechanic', () => {

@@ -6,10 +6,12 @@ import KanbanPage from '../pages/KanbanPage';
 import type { User } from '../types';
 
 // The board fetches tickets on mount — stub it so this page-level test focuses
-// on the title and the primary CTA only.
+// on the title and the primary CTA only. createTicket is stubbed because the
+// modal's flow imports it (it is only invoked on an explicit submit).
 vi.mock('../services/tickets', () => ({
   listTickets: vi.fn().mockResolvedValue([]),
   updateTicketStatus: vi.fn(),
+  createTicket: vi.fn(),
 }));
 
 const MECHANIC: User = {
@@ -30,7 +32,6 @@ function renderPage() {
     <MemoryRouter initialEntries={['/kanban']}>
       <Routes>
         <Route path="/kanban" element={<KanbanPage />} />
-        <Route path="/tickets/new" element={<div>טופס כרטיס עבודה חדש</div>} />
       </Routes>
     </MemoryRouter>
   );
@@ -46,16 +47,23 @@ describe('KanbanPage', () => {
     expect(screen.getByRole('heading', { name: 'לוח עבודה' })).toBeInTheDocument();
   });
 
-  it('renders a prominent CTA that links to the New Ticket route', () => {
+  it('renders a prominent CTA button (not a link to a separate page)', () => {
     renderPage();
-    const cta = screen.getByRole('link', { name: /פתיחת כרטיס עבודה חדש/ });
+    const cta = screen.getByRole('button', { name: /פתיחת כרטיס עבודה חדש/ });
     expect(cta).toBeInTheDocument();
-    expect(cta).toHaveAttribute('href', '/tickets/new');
+    expect(screen.queryByRole('link', { name: /פתיחת כרטיס עבודה חדש/ })).not.toBeInTheDocument();
   });
 
-  it('navigates to the New Ticket route when the CTA is clicked', async () => {
+  it('opens the ticket creation modal when the CTA is clicked', async () => {
     renderPage();
-    await userEvent.click(screen.getByRole('link', { name: /פתיחת כרטיס עבודה חדש/ }));
-    expect(await screen.findByText('טופס כרטיס עבודה חדש')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /פתיחת כרטיס עבודה חדש/ }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'פתיחת כרטיס עבודה חדש' })
+    ).toBeInTheDocument();
   });
 });
