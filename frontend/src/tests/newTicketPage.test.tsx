@@ -250,6 +250,46 @@ describe('NewTicketPage', () => {
     expect(searchVehicle).not.toHaveBeenCalled();
   });
 
+  it('does not call searchVehicle for an invalid plate', async () => {
+    renderPage();
+    await userEvent.type(screen.getByLabelText('מספר רכב'), '12');
+    await userEvent.click(screen.getByRole('button', { name: /חפש/ }));
+
+    expect(
+      await screen.findByText('מספר רכב חייב להכיל בין 4 ל-10 אותיות או ספרות')
+    ).toBeInTheDocument();
+    expect(searchVehicle).not.toHaveBeenCalled();
+  });
+
+  it('normalizes a lowercase plate to uppercase before searching', async () => {
+    vi.mocked(searchVehicle).mockResolvedValueOnce(VEHICLE_HIT);
+    renderPage();
+    await doSearch('vw-1234');
+
+    expect(searchVehicle).toHaveBeenCalledWith('VW-1234');
+  });
+
+  it('normalizes the plate before createTicket in the new-vehicle flow', async () => {
+    mockUser = MECHANIC;
+    vi.mocked(searchVehicle).mockResolvedValueOnce(null);
+    vi.mocked(createTicket).mockResolvedValueOnce(CREATED_TICKET);
+    renderPage();
+    await doSearch('vw-1234');
+    await screen.findByText(/לא נמצא במערכת/);
+
+    await userEvent.type(screen.getByLabelText('שם מלא'), 'דוד');
+    await userEvent.type(screen.getByLabelText('טלפון'), '0509876543');
+    await userEvent.selectOptions(screen.getByLabelText('יצרן'), 'BMW');
+    await userEvent.type(screen.getByLabelText('דגם'), '320i');
+    await userEvent.type(screen.getByLabelText('שנה'), '2020');
+    await userEvent.type(screen.getByLabelText('תיאור התקלה'), 'החלפת שמן');
+    await userEvent.click(screen.getByRole('button', { name: 'פתח כרטיס' }));
+
+    expect(createTicket).toHaveBeenCalledWith(
+      expect.objectContaining({ license_plate: 'VW-1234' })
+    );
+  });
+
   describe('new customer/vehicle field validation', () => {
     async function reachNewForm() {
       vi.mocked(searchVehicle).mockResolvedValueOnce(null);

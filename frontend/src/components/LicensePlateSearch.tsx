@@ -1,28 +1,30 @@
 import { useState, type FormEvent } from 'react';
+import { normalizePlate, validatePlate } from '../utils/licensePlate';
 
 interface Props {
-  // Fired with a non-empty, trimmed plate when the user submits the search.
+  // Fired with the normalized (trimmed + upper-cased) plate when the user
+  // submits a valid search.
   onSearch: (licensePlate: string) => void;
   // True while the parent is performing the lookup.
   loading: boolean;
 }
 
 // Step 1 of the new-ticket flow (FR-2): the user enters a license plate and the
-// parent looks it up. Enforces the "license plate required" rule locally before
-// ever calling the API.
+// parent looks it up. Validates and normalizes the plate to the backend's
+// canonical form before ever calling the API.
 export default function LicensePlateSearch({ onSearch, loading }: Props) {
   const [plate, setPlate] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    const trimmed = plate.trim();
-    if (!trimmed) {
-      setError('יש להזין מספר רכב');
+    const validationError = validatePlate(plate);
+    if (validationError) {
+      setError(validationError);
       return;
     }
     setError(null);
-    onSearch(trimmed);
+    onSearch(normalizePlate(plate));
   };
 
   return (
