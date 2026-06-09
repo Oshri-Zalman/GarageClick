@@ -65,13 +65,25 @@ export default function NewCustomerVehicleTicketForm({
   const validateVehicle = (): VehicleErrors => {
     const errs: VehicleErrors = {};
     if (!fullName.trim()) errs.full_name = 'יש להזין שם לקוח';
-    if (!phone.trim()) errs.phone_number = 'יש להזין מספר טלפון';
+
+    // Mirror the backend phone rule (validators.clean_phone): strip separators,
+    // then require an optional leading + and 9–15 digits.
+    if (!phone.trim()) {
+      errs.phone_number = 'יש להזין מספר טלפון';
+    } else if (!/^\+?\d{9,15}$/.test(phone.replace(/[\s\-().]/g, ''))) {
+      errs.phone_number = 'מספר טלפון חייב להכיל 9 עד 15 ספרות';
+    }
+
     if (!manufacturer) errs.manufacturer = 'יש לבחור יצרן';
     if (!model.trim()) errs.model = 'יש להזין דגם';
+
+    // Mirror the backend year rule (validators.validate_year): 1900 .. next year.
+    const maxYear = new Date().getFullYear() + 1;
+    const yearNum = Number(year.trim());
     if (!year.trim()) {
       errs.year = 'יש להזין שנה';
-    } else if (!/^\d{4}$/.test(year.trim())) {
-      errs.year = 'יש להזין שנה תקינה (4 ספרות)';
+    } else if (!Number.isInteger(yearNum) || yearNum < 1900 || yearNum > maxYear) {
+      errs.year = `שנה חייבת להיות בין 1900 ל-${maxYear}`;
     }
     return errs;
   };

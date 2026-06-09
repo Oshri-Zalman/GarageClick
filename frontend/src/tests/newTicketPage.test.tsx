@@ -232,6 +232,97 @@ describe('NewTicketPage', () => {
     expect(screen.queryByText('הכרטיס נפתח בהצלחה')).not.toBeInTheDocument();
   });
 
+  it('shows the Hebrew search-error message when the lookup fails', async () => {
+    vi.mocked(searchVehicle).mockRejectedValueOnce(new Error('network'));
+    renderPage();
+    await doSearch();
+
+    expect(await screen.findByText(/שגיאה בחיפוש הרכב/)).toBeInTheDocument();
+    // The flow stays on the search step — no ticket form appears.
+    expect(screen.queryByTestId('existing-vehicle-summary')).not.toBeInTheDocument();
+  });
+
+  it('requires a license plate before searching', async () => {
+    renderPage();
+    await userEvent.click(screen.getByRole('button', { name: /חפש/ }));
+
+    expect(await screen.findByText('יש להזין מספר רכב')).toBeInTheDocument();
+    expect(searchVehicle).not.toHaveBeenCalled();
+  });
+
+  describe('new customer/vehicle field validation', () => {
+    async function reachNewForm() {
+      vi.mocked(searchVehicle).mockResolvedValueOnce(null);
+      renderPage();
+      await doSearch('999-999');
+      await screen.findByText(/לא נמצא במערכת/);
+    }
+
+    it('flags every required field when the form is empty', async () => {
+      mockUser = MANAGER;
+      await reachNewForm();
+      await userEvent.click(screen.getByRole('button', { name: 'פתח כרטיס' }));
+
+      expect(await screen.findByText('יש להזין שם לקוח')).toBeInTheDocument();
+      expect(screen.getByText('יש להזין מספר טלפון')).toBeInTheDocument();
+      expect(screen.getByText('יש לבחור יצרן')).toBeInTheDocument();
+      expect(screen.getByText('יש להזין דגם')).toBeInTheDocument();
+      expect(screen.getByText('יש להזין שנה')).toBeInTheDocument();
+      expect(screen.getByText('יש לבחור עובד מטפל')).toBeInTheDocument();
+      expect(screen.getByText('יש להזין תיאור תקלה')).toBeInTheDocument();
+      expect(createTicket).not.toHaveBeenCalled();
+    });
+
+    it('rejects a phone number that is not 9–15 digits', async () => {
+      mockUser = MECHANIC; // skip the mechanic dropdown to isolate the phone rule
+      await reachNewForm();
+
+      await userEvent.type(screen.getByLabelText('שם מלא'), 'דוד');
+      await userEvent.type(screen.getByLabelText('טלפון'), '123');
+      await userEvent.selectOptions(screen.getByLabelText('יצרן'), 'BMW');
+      await userEvent.type(screen.getByLabelText('דגם'), '320i');
+      await userEvent.type(screen.getByLabelText('שנה'), '2020');
+      await userEvent.type(screen.getByLabelText('תיאור התקלה'), 'החלפת שמן');
+      await userEvent.click(screen.getByRole('button', { name: 'פתח כרטיס' }));
+
+      expect(await screen.findByText('מספר טלפון חייב להכיל 9 עד 15 ספרות')).toBeInTheDocument();
+      expect(createTicket).not.toHaveBeenCalled();
+    });
+
+    it('accepts a valid 9–15 digit phone number', async () => {
+      mockUser = MECHANIC;
+      vi.mocked(createTicket).mockResolvedValueOnce(CREATED_TICKET);
+      await reachNewForm();
+
+      await userEvent.type(screen.getByLabelText('שם מלא'), 'דוד');
+      await userEvent.type(screen.getByLabelText('טלפון'), '050-987-6543');
+      await userEvent.selectOptions(screen.getByLabelText('יצרן'), 'BMW');
+      await userEvent.type(screen.getByLabelText('דגם'), '320i');
+      await userEvent.type(screen.getByLabelText('שנה'), '2020');
+      await userEvent.type(screen.getByLabelText('תיאור התקלה'), 'החלפת שמן');
+      await userEvent.click(screen.getByRole('button', { name: 'פתח כרטיס' }));
+
+      expect(await screen.findByText('הכרטיס נפתח בהצלחה')).toBeInTheDocument();
+      expect(screen.queryByText('מספר טלפון חייב להכיל 9 עד 15 ספרות')).not.toBeInTheDocument();
+    });
+
+    it('rejects a year outside 1900..currentYear+1', async () => {
+      mockUser = MECHANIC;
+      await reachNewForm();
+
+      await userEvent.type(screen.getByLabelText('שם מלא'), 'דוד');
+      await userEvent.type(screen.getByLabelText('טלפון'), '0509876543');
+      await userEvent.selectOptions(screen.getByLabelText('יצרן'), 'BMW');
+      await userEvent.type(screen.getByLabelText('דגם'), '320i');
+      await userEvent.type(screen.getByLabelText('שנה'), '3000');
+      await userEvent.type(screen.getByLabelText('תיאור התקלה'), 'החלפת שמן');
+      await userEvent.click(screen.getByRole('button', { name: 'פתח כרטיס' }));
+
+      expect(await screen.findByText(/שנה חייבת להיות בין 1900/)).toBeInTheDocument();
+      expect(createTicket).not.toHaveBeenCalled();
+    });
+  });
+
   it('links back to the work board after a successful creation', async () => {
     mockUser = MECHANIC;
     vi.mocked(searchVehicle).mockResolvedValueOnce(VEHICLE_HIT);
