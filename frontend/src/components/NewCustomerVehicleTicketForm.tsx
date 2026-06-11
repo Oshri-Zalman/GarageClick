@@ -109,76 +109,83 @@ export default function NewCustomerVehicleTicketForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div
-        className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"
+        className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"
         role="status"
       >
         ⚠️ הרכב <span className="font-bold">{licensePlate}</span> לא נמצא במערכת. יש למלא פרטי לקוח ורכב חדשים.
       </div>
 
-      <fieldset className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6">
+      <fieldset className="rounded-xl border border-gray-200 bg-white p-4">
         <legend className="px-2 font-semibold text-gray-700">לקוח חדש</legend>
-        <Field id="customer-name" label="שם מלא" error={vehicleErrors.full_name}>
-          <input
-            id="customer-name"
-            type="text"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className={fieldClass}
-          />
-        </Field>
-        <Field id="customer-phone" label="טלפון" error={vehicleErrors.phone_number}>
-          <input
-            id="customer-phone"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className={fieldClass}
-          />
-        </Field>
+        {/* Related fields share a row on desktop, stack on small screens. */}
+        <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
+          <Field id="customer-name" label="שם מלא" error={vehicleErrors.full_name}>
+            <input
+              id="customer-name"
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className={fieldClass}
+            />
+          </Field>
+          <Field id="customer-phone" label="טלפון" error={vehicleErrors.phone_number}>
+            <input
+              id="customer-phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className={fieldClass}
+            />
+          </Field>
+        </div>
       </fieldset>
 
-      <fieldset className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6">
+      <fieldset className="rounded-xl border border-gray-200 bg-white p-4">
         <legend className="px-2 font-semibold text-gray-700">רכב חדש</legend>
-        <Field id="vehicle-plate" label="מספר רכב">
-          <input id="vehicle-plate" type="text" value={licensePlate} readOnly className={`${fieldClass} bg-gray-100`} />
-        </Field>
-        <Field id="vehicle-manufacturer" label="יצרן" error={vehicleErrors.manufacturer}>
-          <select
-            id="vehicle-manufacturer"
-            value={manufacturer}
-            onChange={(e) => setManufacturer(e.target.value)}
-            className={fieldClass}
-          >
-            <option value="">בחר יצרן...</option>
-            {MANUFACTURERS.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field id="vehicle-model" label="דגם" error={vehicleErrors.model}>
-          <input
-            id="vehicle-model"
-            type="text"
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            className={fieldClass}
-          />
-        </Field>
-        <Field id="vehicle-year" label="שנה" error={vehicleErrors.year}>
-          <input
-            id="vehicle-year"
-            type="text"
-            inputMode="numeric"
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
-            placeholder="2020"
-            className={fieldClass}
-          />
-        </Field>
+        {/* Short fields: up to three columns on wide laptops, two on tablets,
+            stacked on mobile. */}
+        <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Field id="vehicle-plate" label="מספר רכב">
+            <input id="vehicle-plate" type="text" value={licensePlate} readOnly className={`${fieldClass} bg-gray-100`} />
+          </Field>
+          <Field id="vehicle-manufacturer" label="יצרן" error={vehicleErrors.manufacturer}>
+            <select
+              id="vehicle-manufacturer"
+              value={manufacturer}
+              onChange={(e) => setManufacturer(e.target.value)}
+              className={fieldClass}
+            >
+              <option value="">בחר יצרן...</option>
+              {MANUFACTURERS.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field id="vehicle-model" label="דגם" error={vehicleErrors.model}>
+            <input
+              id="vehicle-model"
+              type="text"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              className={fieldClass}
+            />
+          </Field>
+          <Field id="vehicle-year" label="שנה" error={vehicleErrors.year}>
+            <input
+              id="vehicle-year"
+              type="text"
+              inputMode="numeric"
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+              placeholder="2020"
+              className={fieldClass}
+            />
+          </Field>
+        </div>
       </fieldset>
 
       <TicketDetailsFields

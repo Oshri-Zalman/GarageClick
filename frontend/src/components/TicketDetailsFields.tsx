@@ -5,10 +5,9 @@ export interface TicketDetailsValues {
   // The selected mechanic id as a string ('' when nothing is chosen). Ignored
   // for the Mechanic role, who is always assigned to themselves.
   assignedMechanicId: string;
-  estimatedCompletion: string;
 }
 
-export type TicketDetailsField = 'description' | 'assignedMechanicId' | 'estimatedCompletion';
+export type TicketDetailsField = 'description' | 'assignedMechanicId';
 
 interface Props {
   user: User;
@@ -22,7 +21,7 @@ const fieldClass =
   'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none';
 
 // The shared lower half of both ticket forms: who handles the job, the issue
-// description, an optional ETA, and a parts placeholder. The mechanic
+// description, and a parts placeholder. The mechanic
 // assignment honours the role rules in FR-2:
 //  • Manager / Secretary pick the assigned mechanic from a dropdown.
 //  • A Mechanic is auto-assigned to themselves and sees no dropdown at all.
@@ -30,7 +29,7 @@ export default function TicketDetailsFields({ user, mechanics, values, errors, o
   const isMechanic = user.role === 'Mechanic';
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {isMechanic ? (
         <div>
           <span className="mb-1 block text-sm font-semibold text-gray-700">עובד מטפל</span>
@@ -81,19 +80,6 @@ export default function TicketDetailsFields({ user, mechanics, values, errors, o
             {errors.description}
           </p>
         )}
-      </div>
-
-      <div>
-        <label htmlFor="estimated-completion" className="mb-1 block text-sm font-semibold text-gray-700">
-          זמן סיום משוער <span className="font-normal text-gray-400">(אופציונלי)</span>
-        </label>
-        <input
-          id="estimated-completion"
-          type="datetime-local"
-          value={values.estimatedCompletion}
-          onChange={(e) => onChange('estimatedCompletion', e.target.value)}
-          className={fieldClass}
-        />
       </div>
 
       {/* Parts selection is intentionally out of scope for Stage 4 — it arrives
