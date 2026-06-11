@@ -4,7 +4,6 @@ import type { TicketDetailsValues } from './TicketDetailsFields';
 export const emptyDetails: TicketDetailsValues = {
   description: '',
   assignedMechanicId: '',
-  estimatedCompletion: '',
 };
 
 export interface DetailsErrors {
@@ -34,7 +33,6 @@ export function buildDetailsPayload(user: User, values: TicketDetailsValues) {
   return {
     assigned_mechanic_id: assignedMechanicId,
     description: values.description.trim(),
-    estimated_completion_time: values.estimatedCompletion || null,
     parts: [],
   };
 }

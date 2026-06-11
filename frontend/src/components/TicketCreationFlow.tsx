@@ -34,19 +34,33 @@ export default function TicketCreationFlow({ user, onCreated, onClose }: Props) 
   const [vehicle, setVehicle] = useState<VehicleSearchHit | null>(null);
 
   const [mechanics, setMechanics] = useState<Mechanic[]>([]);
+  const [mechanicsError, setMechanicsError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [created, setCreated] = useState<KanbanTicket | null>(null);
 
-  // Manager/Secretary need the assignable-mechanic roster; a Mechanic never
-  // picks one (auto-assigned to self), so we skip the fetch for them.
+  // Manager/Secretary need the assignable-mechanic roster from the real
+  // GET /api/mechanics endpoint; a Mechanic never picks one (auto-assigned to
+  // self), so we skip the fetch for them. On failure we surface a clear Hebrew
+  // error and keep an empty dropdown — required-field validation then blocks
+  // submission, so we never assign a fabricated mechanic id.
   const needsMechanics = user.role !== 'Mechanic';
   useEffect(() => {
     if (!needsMechanics) return;
     let active = true;
-    listMechanics().then((list) => {
-      if (active) setMechanics(list);
-    });
+    listMechanics()
+      .then((list) => {
+        if (active) {
+          setMechanics(list);
+          setMechanicsError(null);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setMechanics([]);
+          setMechanicsError('שגיאה בטעינת רשימת העובדים המטפלים. נסה לרענן את הדף.');
+        }
+      });
     return () => {
       active = false;
     };
@@ -146,6 +160,11 @@ export default function TicketCreationFlow({ user, onCreated, onClose }: Props) 
 
       {stage !== 'search' && (
         <>
+          {mechanicsError && (
+            <div className="mb-4">
+              <ErrorMessage message={mechanicsError} />
+            </div>
+          )}
           {submitError && (
             <div className="mb-4">
               <ErrorMessage message={submitError} />

@@ -5,40 +5,47 @@ vi.mock('../services/apiClient', () => ({
 }));
 
 import apiClient from '../services/apiClient';
-import { listMechanics, MOCK_MECHANICS } from '../services/mechanics';
+import { listMechanics } from '../services/mechanics';
 
 const mockedGet = vi.mocked(apiClient.get);
 
 describe('listMechanics', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('maps assignable employees (Mechanic/Manager) from the real endpoint', async () => {
+  it('calls the real GET /api/mechanics endpoint (not the admin endpoint)', async () => {
+    mockedGet.mockResolvedValueOnce({ data: [] });
+    await listMechanics();
+    expect(mockedGet).toHaveBeenCalledWith('/mechanics');
+  });
+
+  it('maps the backend rows (full_name → name) for the dropdown', async () => {
     mockedGet.mockResolvedValueOnce({
       data: [
-        { id: 1, name: 'אורי', role: 'Manager' },
-        { id: 2, name: 'שרה', role: 'Secretary' }, // filtered out — not assignable
-        { id: 5, name: 'דוד', role: 'Mechanic' },
+        { id: 1, username: 'uri', full_name: 'אורי מנהל', role: 'Manager' },
+        { id: 5, username: 'david', full_name: 'דוד כהן', role: 'Mechanic' },
       ],
     });
 
     const result = await listMechanics();
 
-    expect(mockedGet).toHaveBeenCalledWith('/admin/employees');
     expect(result).toEqual([
-      { id: 1, name: 'אורי', role: 'Manager' },
-      { id: 5, name: 'דוד', role: 'Mechanic' },
+      { id: 1, name: 'אורי מנהל', role: 'Manager' },
+      { id: 5, name: 'דוד כהן', role: 'Mechanic' },
     ]);
   });
 
-  it('falls back to MOCK_MECHANICS when the endpoint is forbidden/fails', async () => {
-    mockedGet.mockRejectedValueOnce({ response: { status: 403 } });
-    await expect(listMechanics()).resolves.toEqual(MOCK_MECHANICS);
+  it('falls back to the username when full_name is missing', async () => {
+    mockedGet.mockResolvedValueOnce({
+      data: [{ id: 7, username: 'avi', full_name: null, role: 'Mechanic' }],
+    });
+
+    const result = await listMechanics();
+
+    expect(result).toEqual([{ id: 7, name: 'avi', role: 'Mechanic' }]);
   });
 
-  it('falls back to MOCK_MECHANICS when no assignable employees are returned', async () => {
-    mockedGet.mockResolvedValueOnce({
-      data: [{ id: 2, name: 'שרה', role: 'Secretary' }],
-    });
-    await expect(listMechanics()).resolves.toEqual(MOCK_MECHANICS);
+  it('propagates errors instead of returning fabricated mechanic ids', async () => {
+    mockedGet.mockRejectedValueOnce({ response: { status: 403 } });
+    await expect(listMechanics()).rejects.toBeTruthy();
   });
 });

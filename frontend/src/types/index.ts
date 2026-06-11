@@ -104,7 +104,6 @@ export interface CreateTicketExisting {
   vehicle_id: number;
   assigned_mechanic_id: number;
   description: string;
-  estimated_completion_time?: string | null;
   parts?: { part_id: number; quantity: number }[];
 }
 
@@ -115,7 +114,6 @@ export interface CreateTicketNew {
   new_vehicle: { manufacturer: string; model: string; year: number | null };
   assigned_mechanic_id: number;
   description: string;
-  estimated_completion_time?: string | null;
   parts?: { part_id: number; quantity: number }[];
 }
 

@@ -127,7 +127,7 @@ describe('NewTicketPage', () => {
     );
   });
 
-  it('does not show a mechanic dropdown for a Mechanic', async () => {
+  it('does not show a mechanic dropdown for a Mechanic, and never fetches the list', async () => {
     mockUser = MECHANIC;
     vi.mocked(searchVehicle).mockResolvedValueOnce(VEHICLE_HIT);
     renderPage();
@@ -136,6 +136,38 @@ describe('NewTicketPage', () => {
 
     expect(screen.queryByLabelText('עובד מטפל')).not.toBeInTheDocument();
     expect(screen.getByTestId('auto-assigned-mechanic')).toHaveTextContent('דוד (אתה)');
+    // A Mechanic is auto-assigned to self, so the mechanics endpoint is skipped.
+    expect(listMechanics).not.toHaveBeenCalled();
+  });
+
+  it('does not render the estimated completion time field', async () => {
+    mockUser = MANAGER;
+    vi.mocked(searchVehicle).mockResolvedValueOnce(VEHICLE_HIT);
+    renderPage();
+    await doSearch();
+    await screen.findByTestId('existing-vehicle-summary');
+
+    expect(screen.queryByLabelText(/זמן סיום משוער/)).not.toBeInTheDocument();
+  });
+
+  it('shows a Hebrew error and an empty dropdown when the mechanics endpoint fails', async () => {
+    mockUser = SECRETARY;
+    vi.mocked(listMechanics).mockRejectedValueOnce(new Error('403'));
+    vi.mocked(searchVehicle).mockResolvedValueOnce(VEHICLE_HIT);
+    renderPage();
+    await doSearch();
+    await screen.findByTestId('existing-vehicle-summary');
+
+    expect(await screen.findByText(/שגיאה בטעינת רשימת העובדים/)).toBeInTheDocument();
+    // No fabricated mechanic ids: the dropdown has only the empty placeholder.
+    const select = screen.getByLabelText('עובד מטפל');
+    expect(within(select).getAllByRole('option')).toHaveLength(1);
+
+    // Required-field validation then blocks submission (no fake id is sent).
+    await userEvent.type(screen.getByLabelText('תיאור התקלה'), 'בדיקה');
+    await userEvent.click(screen.getByRole('button', { name: 'פתח כרטיס' }));
+    expect(await screen.findByText('יש לבחור עובד מטפל')).toBeInTheDocument();
+    expect(createTicket).not.toHaveBeenCalled();
   });
 
   it('shows the mechanic dropdown for a Manager', async () => {
@@ -180,9 +212,12 @@ describe('NewTicketPage', () => {
       vehicle_id: 50,
       assigned_mechanic_id: 5,
       description: 'החלפת בלמים',
-      estimated_completion_time: null,
       parts: [],
     });
+    // The removed "estimated completion time" field is never sent.
+    expect(createTicket).not.toHaveBeenCalledWith(
+      expect.objectContaining({ estimated_completion_time: expect.anything() })
+    );
     expect(await screen.findByText('הכרטיס נפתח בהצלחה')).toBeInTheDocument();
     expect(screen.getByText('TKT-00099')).toBeInTheDocument();
   });
@@ -211,9 +246,11 @@ describe('NewTicketPage', () => {
       new_vehicle: { manufacturer: 'BMW', model: '320i', year: 2020 },
       assigned_mechanic_id: 5,
       description: 'החלפת שמן',
-      estimated_completion_time: null,
       parts: [],
     });
+    expect(createTicket).not.toHaveBeenCalledWith(
+      expect.objectContaining({ estimated_completion_time: expect.anything() })
+    );
     expect(await screen.findByText('הכרטיס נפתח בהצלחה')).toBeInTheDocument();
   });
 
