@@ -13,6 +13,7 @@ const KNOWN_ERRORS: { match: string; hebrew: string }[] = [
   { match: 'customer_id does not exist', hebrew: 'הלקוח אינו קיים במערכת.' },
   { match: 'Customer not found', hebrew: 'הלקוח לא נמצא במערכת.' },
   { match: 'Vehicle not found', hebrew: 'הרכב לא נמצא במערכת.' },
+  { match: 'Part not found', hebrew: 'החלף לא נמצא במערכת.' },
 ];
 
 // Extracts the backend `detail` string from an Axios error, if present. FastAPI

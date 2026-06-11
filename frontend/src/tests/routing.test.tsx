@@ -21,6 +21,15 @@ vi.mock('../services/auth', () => ({
   getStoredUser: vi.fn(() => null),
 }));
 
+// PartsPage fetches the inventory on mount; stub the service so this synchronous
+// render check never hits the network.
+vi.mock('../services/parts', () => ({
+  getAllParts: vi.fn().mockResolvedValue([]),
+  createPart: vi.fn(),
+  updatePart: vi.fn(),
+  updatePartQuantity: vi.fn(),
+}));
+
 import { getStoredUser } from '../services/auth';
 
 function renderAt(path: string, element: React.ReactElement) {
@@ -83,8 +92,18 @@ describe('Route placeholders render', () => {
   });
 
   it('/parts renders PartsPage in Hebrew', () => {
+    // PartsPage requires an authenticated staff user (Manager/Secretary).
+    vi.mocked(getStoredUser).mockReturnValue({
+      id: 1,
+      username: 'uri',
+      full_name: 'אורי',
+      email: null,
+      role: 'Manager',
+      is_active: true,
+    });
     renderAt('/parts', <PartsPage />);
     expect(screen.getByRole('heading', { name: 'מלאי חלקים' })).toBeInTheDocument();
+    vi.mocked(getStoredUser).mockReturnValue(null);
   });
 
   it('/reports renders ReportsPage in Hebrew', () => {

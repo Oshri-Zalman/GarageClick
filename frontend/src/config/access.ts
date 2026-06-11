@@ -73,6 +73,14 @@ export function canManageCustomers(role: Role): boolean {
   return role === 'Manager' || role === 'Secretary';
 }
 
+// True when the role may manage the parts inventory (create/edit parts, update
+// quantities). Mirrors the backend: the inventory endpoints under /api/parts are
+// restricted to STAFF (Manager/Secretary); mechanics are blocked at the route
+// guard (see allowedRoles('/parts')), but this keeps action gating explicit.
+export function canManageParts(role: Role): boolean {
+  return role === 'Manager' || role === 'Secretary';
+}
+
 // The landing page a role should be sent to after login or when they hit a
 // route they are not allowed to see. Mechanics live in the Kanban board;
 // everyone else gets the dashboard.
