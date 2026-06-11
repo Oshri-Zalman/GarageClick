@@ -71,6 +71,17 @@ export default function NewCustomerVehicleTicketForm({
   const onDetailChange = (field: TicketDetailsField, value: string) =>
     setDetails((prev) => ({ ...prev, [field]: value }));
 
+  // Changing any vehicle-identity field (manufacturer/model/year) invalidates the
+  // previously chosen parts — they may not fit the new vehicle. Reset the whole
+  // parts selection (parts, quantities, and "אחר / ללא חלפים") and clear its
+  // error so compatible parts reload cleanly for the updated vehicle. Reusing the
+  // stable empty constants means no-op resets bail out of re-render.
+  const onVehicleFieldChange = (setter: (value: string) => void) => (value: string) => {
+    setter(value);
+    setParts(emptyPartsSelection);
+    setPartsError(null);
+  };
+
   // The year as a number once it's a valid 4-digit entry, else null — gates the
   // compatible-parts lookup until the vehicle is fully known.
   const yearNumber = /^\d{4}$/.test(year.trim()) ? Number(year.trim()) : null;
@@ -170,7 +181,7 @@ export default function NewCustomerVehicleTicketForm({
             <select
               id="vehicle-manufacturer"
               value={manufacturer}
-              onChange={(e) => setManufacturer(e.target.value)}
+              onChange={(e) => onVehicleFieldChange(setManufacturer)(e.target.value)}
               className={fieldClass}
             >
               <option value="">בחר יצרן...</option>
@@ -186,7 +197,7 @@ export default function NewCustomerVehicleTicketForm({
               id="vehicle-model"
               type="text"
               value={model}
-              onChange={(e) => setModel(e.target.value)}
+              onChange={(e) => onVehicleFieldChange(setModel)(e.target.value)}
               className={fieldClass}
             />
           </Field>
@@ -196,7 +207,7 @@ export default function NewCustomerVehicleTicketForm({
               type="text"
               inputMode="numeric"
               value={year}
-              onChange={(e) => setYear(e.target.value)}
+              onChange={(e) => onVehicleFieldChange(setYear)(e.target.value)}
               placeholder="2020"
               className={fieldClass}
             />

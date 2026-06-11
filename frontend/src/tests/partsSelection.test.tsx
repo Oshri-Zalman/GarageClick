@@ -187,3 +187,119 @@ describe('PartsSelection — compatible parts in the ticket flow', () => {
     expect(await screen.findByLabelText('בלמים דיסק קדמי')).toBeInTheDocument();
   });
 });
+
+describe('PartsSelection — reset on vehicle change (new-vehicle flow)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getCompatibleParts).mockResolvedValue(PARTS);
+  });
+
+  function renderNew() {
+    const onSubmit = vi.fn();
+    render(
+      <NewCustomerVehicleTicketForm
+        user={MECHANIC}
+        licensePlate="ZZ-9999"
+        mechanics={MECHANICS}
+        submitting={false}
+        onSubmit={onSubmit}
+      />
+    );
+    return onSubmit;
+  }
+
+  async function fillVehicle(make = 'BMW', model = '320i', year = '2020') {
+    await userEvent.selectOptions(screen.getByLabelText('יצרן'), make);
+    await userEvent.type(screen.getByLabelText('דגם'), model);
+    await userEvent.type(screen.getByLabelText('שנה'), year);
+    // Wait for the first compatible-parts load to resolve.
+    await screen.findByLabelText('בלמים דיסק קדמי');
+  }
+
+  it('clears the selected part and reloads when the manufacturer changes', async () => {
+    renderNew();
+    await fillVehicle();
+
+    await userEvent.click(screen.getByLabelText('בלמים דיסק קדמי'));
+    expect(screen.getByTestId('selected-parts-summary')).toBeInTheDocument();
+
+    await userEvent.selectOptions(screen.getByLabelText('יצרן'), 'Toyota');
+
+    // The list reloads for the new vehicle, with the previous part no longer chosen.
+    const brakes = await screen.findByLabelText('בלמים דיסק קדמי');
+    expect(brakes).not.toBeChecked();
+    expect(screen.queryByTestId('selected-parts-summary')).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(getCompatibleParts).toHaveBeenCalledWith('Toyota', '320i', 2020)
+    );
+  });
+
+  it('clears the selected part when the model changes', async () => {
+    renderNew();
+    await fillVehicle();
+
+    await userEvent.click(screen.getByLabelText('בלמים דיסק קדמי'));
+    expect(screen.getByTestId('selected-parts-summary')).toBeInTheDocument();
+
+    // Append to the model; the parts selection is dropped immediately.
+    await userEvent.type(screen.getByLabelText('דגם'), 'd');
+    expect(screen.queryByTestId('selected-parts-summary')).not.toBeInTheDocument();
+
+    const brakes = await screen.findByLabelText('בלמים דיסק קדמי');
+    expect(brakes).not.toBeChecked();
+    await waitFor(() =>
+      expect(getCompatibleParts).toHaveBeenCalledWith('BMW', '320id', 2020)
+    );
+  });
+
+  it('clears the selected part when the year changes', async () => {
+    renderNew();
+    await fillVehicle();
+
+    await userEvent.click(screen.getByLabelText('בלמים דיסק קדמי'));
+    expect(screen.getByTestId('selected-parts-summary')).toBeInTheDocument();
+
+    await userEvent.clear(screen.getByLabelText('שנה'));
+    await userEvent.type(screen.getByLabelText('שנה'), '2019');
+
+    const brakes = await screen.findByLabelText('בלמים דיסק קדמי');
+    expect(brakes).not.toBeChecked();
+    expect(screen.queryByTestId('selected-parts-summary')).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(getCompatibleParts).toHaveBeenCalledWith('BMW', '320i', 2019)
+    );
+  });
+
+  it('clears "אחר / ללא חלפים" when the vehicle details change', async () => {
+    renderNew();
+    await fillVehicle();
+
+    await userEvent.click(screen.getByLabelText('אחר / ללא חלפים'));
+    expect(screen.getByTestId('selected-parts-summary')).toHaveTextContent('ללא חלפים (אחר)');
+
+    await userEvent.selectOptions(screen.getByLabelText('יצרן'), 'Toyota');
+
+    await screen.findByLabelText('בלמים דיסק קדמי');
+    expect(screen.getByLabelText('אחר / ללא חלפים')).not.toBeChecked();
+    expect(screen.queryByTestId('selected-parts-summary')).not.toBeInTheDocument();
+  });
+
+  it('keeps the selected part in the existing-vehicle flow (no reset)', async () => {
+    render(
+      <ExistingVehicleTicketForm
+        user={MECHANIC}
+        vehicle={VEHICLE}
+        mechanics={MECHANICS}
+        submitting={false}
+        onSubmit={vi.fn()}
+      />
+    );
+
+    await userEvent.click(await screen.findByLabelText('בלמים דיסק קדמי'));
+    // The existing-vehicle summary is read-only — there is no vehicle field to
+    // change — so the selection simply persists.
+    expect(screen.getByLabelText('בלמים דיסק קדמי')).toBeChecked();
+    expect(screen.getByTestId('selected-parts-summary')).toBeInTheDocument();
+    expect(screen.queryByLabelText('יצרן')).not.toBeInTheDocument();
+  });
+});
