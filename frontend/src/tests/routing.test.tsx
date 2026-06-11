@@ -68,8 +68,18 @@ describe('Route placeholders render', () => {
   });
 
   it('/customers renders CustomersPage in Hebrew', () => {
+    // CustomersPage requires an authenticated staff user (Manager/Secretary).
+    vi.mocked(getStoredUser).mockReturnValue({
+      id: 1,
+      username: 'uri',
+      full_name: 'אורי',
+      email: null,
+      role: 'Manager',
+      is_active: true,
+    });
     renderAt('/customers', <CustomersPage />);
     expect(screen.getByRole('heading', { name: 'לקוחות ורכבים' })).toBeInTheDocument();
+    vi.mocked(getStoredUser).mockReturnValue(null);
   });
 
   it('/parts renders PartsPage in Hebrew', () => {

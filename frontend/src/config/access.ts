@@ -64,6 +64,15 @@ export function navItemsForRole(role: Role): NavItem[] {
   return NAV_ITEMS.filter((item) => canAccess(role, item.to));
 }
 
+// True when the role may create/edit customers and vehicles from the dedicated
+// Customers & Vehicles management page. Mirrors the backend: PUT /api/customers
+// and PUT /api/vehicles are restricted to STAFF (Manager/Secretary). Mechanics
+// never reach the page (see allowedRoles('/customers')), but this keeps the
+// edit-action gating explicit and testable.
+export function canManageCustomers(role: Role): boolean {
+  return role === 'Manager' || role === 'Secretary';
+}
+
 // The landing page a role should be sent to after login or when they hit a
 // route they are not allowed to see. Mechanics live in the Kanban board;
 // everyone else gets the dashboard.

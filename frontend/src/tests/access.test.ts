@@ -89,4 +89,11 @@ describe('role access config', () => {
       expect(canAccess(role, '/some-shared-route')).toBe(true);
     }
   });
+
+  it('only Manager/Secretary may manage customers; Mechanic may not', async () => {
+    const { canManageCustomers } = await import('../config/access');
+    expect(canManageCustomers('Manager')).toBe(true);
+    expect(canManageCustomers('Secretary')).toBe(true);
+    expect(canManageCustomers('Mechanic')).toBe(false);
+  });
 });

@@ -26,6 +26,46 @@ export interface Vehicle {
   year: number | null;
 }
 
+// A vehicle as nested inside a customer detail / search payload
+// (GET /api/customers/{id}, GET /api/customers/search). The backend omits
+// customer_id here since the owner is the enclosing customer.
+export interface CustomerVehicle {
+  id: number;
+  license_plate: string;
+  manufacturer: string;
+  model: string;
+  year: number | null;
+}
+
+// The bare customer row returned by GET /api/customers and POST/PUT
+// /api/customers (no vehicles attached).
+export interface CustomerSummary {
+  id: number;
+  full_name: string;
+  phone_number: string;
+}
+
+// GET /api/customers/{id} and each item of GET /api/customers/search — the
+// customer plus the list of vehicles they own (FR-1).
+export interface CustomerDetail extends CustomerSummary {
+  vehicles: CustomerVehicle[];
+}
+
+// Editable customer fields (create + edit forms).
+export interface CustomerInput {
+  full_name: string;
+  phone_number: string;
+}
+
+// Editable vehicle fields (create + edit forms). The owning customer is passed
+// separately on create; on edit only these fields change.
+export interface VehicleInput {
+  license_plate: string;
+  manufacturer: string;
+  model: string;
+  year: number | null;
+}
+
 export interface Part {
   id: number;
   part_name: string;
