@@ -1,6 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import type { CreateTicketPayload, Mechanic, User } from '../types';
 import TicketDetailsFields, { type TicketDetailsField } from './TicketDetailsFields';
+import PartsSelection from './PartsSelection';
+import {
+  buildPartsPayload,
+  emptyPartsSelection,
+  validatePartsSelection,
+  type PartsSelectionState,
+} from './ticketParts';
 import {
   buildDetailsPayload,
   emptyDetails,
@@ -56,11 +63,28 @@ export default function NewCustomerVehicleTicketForm({
   const [model, setModel] = useState('');
   const [year, setYear] = useState('');
   const [details, setDetails] = useState(emptyDetails);
+  const [parts, setParts] = useState<PartsSelectionState>(emptyPartsSelection);
+  const [partsError, setPartsError] = useState<string | null>(null);
   const [vehicleErrors, setVehicleErrors] = useState<VehicleErrors>({});
   const [detailErrors, setDetailErrors] = useState<DetailsErrors>({});
 
   const onDetailChange = (field: TicketDetailsField, value: string) =>
     setDetails((prev) => ({ ...prev, [field]: value }));
+
+  // Changing any vehicle-identity field (manufacturer/model/year) invalidates the
+  // previously chosen parts — they may not fit the new vehicle. Reset the whole
+  // parts selection (parts, quantities, and "אחר / ללא חלפים") and clear its
+  // error so compatible parts reload cleanly for the updated vehicle. Reusing the
+  // stable empty constants means no-op resets bail out of re-render.
+  const onVehicleFieldChange = (setter: (value: string) => void) => (value: string) => {
+    setter(value);
+    setParts(emptyPartsSelection);
+    setPartsError(null);
+  };
+
+  // The year as a number once it's a valid 4-digit entry, else null — gates the
+  // compatible-parts lookup until the vehicle is fully known.
+  const yearNumber = /^\d{4}$/.test(year.trim()) ? Number(year.trim()) : null;
 
   const validateVehicle = (): VehicleErrors => {
     const errs: VehicleErrors = {};
@@ -92,9 +116,11 @@ export default function NewCustomerVehicleTicketForm({
     e.preventDefault();
     const vErrs = validateVehicle();
     const dErrs = validateDetails(user, details);
+    const pErr = validatePartsSelection(parts);
     setVehicleErrors(vErrs);
     setDetailErrors(dErrs);
-    if (Object.keys(vErrs).length > 0 || Object.keys(dErrs).length > 0) return;
+    setPartsError(pErr);
+    if (Object.keys(vErrs).length > 0 || Object.keys(dErrs).length > 0 || pErr) return;
 
     onSubmit({
       license_plate: licensePlate,
@@ -105,6 +131,7 @@ export default function NewCustomerVehicleTicketForm({
         year: Number(year.trim()),
       },
       ...buildDetailsPayload(user, details),
+      parts: buildPartsPayload(parts),
     });
   };
 
@@ -154,7 +181,7 @@ export default function NewCustomerVehicleTicketForm({
             <select
               id="vehicle-manufacturer"
               value={manufacturer}
-              onChange={(e) => setManufacturer(e.target.value)}
+              onChange={(e) => onVehicleFieldChange(setManufacturer)(e.target.value)}
               className={fieldClass}
             >
               <option value="">בחר יצרן...</option>
@@ -170,7 +197,7 @@ export default function NewCustomerVehicleTicketForm({
               id="vehicle-model"
               type="text"
               value={model}
-              onChange={(e) => setModel(e.target.value)}
+              onChange={(e) => onVehicleFieldChange(setModel)(e.target.value)}
               className={fieldClass}
             />
           </Field>
@@ -180,7 +207,7 @@ export default function NewCustomerVehicleTicketForm({
               type="text"
               inputMode="numeric"
               value={year}
-              onChange={(e) => setYear(e.target.value)}
+              onChange={(e) => onVehicleFieldChange(setYear)(e.target.value)}
               placeholder="2020"
               className={fieldClass}
             />
@@ -194,6 +221,15 @@ export default function NewCustomerVehicleTicketForm({
         values={details}
         errors={detailErrors}
         onChange={onDetailChange}
+      />
+
+      <PartsSelection
+        manufacturer={manufacturer}
+        model={model.trim()}
+        year={yearNumber}
+        value={parts}
+        onChange={setParts}
+        error={partsError}
       />
 
       <button

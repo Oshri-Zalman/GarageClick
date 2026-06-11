@@ -36,6 +36,26 @@ export interface Part {
   quantity_current: number;
 }
 
+// A row from GET /api/parts/compatible. The backend flags `available` (stock > 0)
+// so the UI can show out-of-stock parts as disabled (FR-7.2).
+export interface CompatiblePart {
+  id: number;
+  part_name: string;
+  part_code: string;
+  manufacturer: string | null;
+  model: string | null;
+  year_start: number | null;
+  quantity_current: number;
+  available: boolean;
+}
+
+// A single part the user chose to use on the ticket — the exact shape POSTed in
+// the `parts` array of POST /api/tickets.
+export interface SelectedPart {
+  part_id: number;
+  quantity: number;
+}
+
 export interface Ticket {
   id: number;
   status: TicketStatus;

@@ -8,10 +8,12 @@ import type { KanbanTicket, Mechanic, User, VehicleSearchHit } from '../types';
 vi.mock('../services/vehicles', () => ({ searchVehicle: vi.fn() }));
 vi.mock('../services/mechanics', () => ({ listMechanics: vi.fn() }));
 vi.mock('../services/tickets', () => ({ createTicket: vi.fn() }));
+vi.mock('../services/parts', () => ({ getCompatibleParts: vi.fn() }));
 
 import { searchVehicle } from '../services/vehicles';
 import { listMechanics } from '../services/mechanics';
 import { createTicket } from '../services/tickets';
+import { getCompatibleParts } from '../services/parts';
 
 // useAuth reads the current user; swap the user per test via this mutable ref.
 let mockUser: User;
@@ -67,11 +69,18 @@ async function doSearch(plate = '123-45-678') {
   await userEvent.click(screen.getByRole('button', { name: /חפש/ }));
 }
 
+// Stage 5 requires choosing parts (or "אחר / ללא חלפים") before submit. These
+// flows don't exercise inventory, so they pick the no-parts option (parts: []).
+async function chooseNoParts() {
+  await userEvent.click(await screen.findByLabelText('אחר / ללא חלפים'));
+}
+
 describe('NewTicketPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUser = MANAGER;
     vi.mocked(listMechanics).mockResolvedValue(MECHANICS);
+    vi.mocked(getCompatibleParts).mockResolvedValue([]);
   });
 
   it('auto-fills customer/vehicle details when the plate is found', async () => {
@@ -120,6 +129,7 @@ describe('NewTicketPage', () => {
     await screen.findByTestId('existing-vehicle-summary');
 
     await userEvent.type(screen.getByLabelText('תיאור התקלה'), 'החלפת בלמים');
+    await chooseNoParts();
     await userEvent.click(screen.getByRole('button', { name: 'פתח כרטיס' }));
 
     expect(createTicket).toHaveBeenCalledWith(
@@ -206,6 +216,7 @@ describe('NewTicketPage', () => {
     await within(screen.getByLabelText('עובד מטפל')).findByRole('option', { name: 'דוד' });
     await userEvent.selectOptions(screen.getByLabelText('עובד מטפל'), '5');
     await userEvent.type(screen.getByLabelText('תיאור התקלה'), 'החלפת בלמים');
+    await chooseNoParts();
     await userEvent.click(screen.getByRole('button', { name: 'פתח כרטיס' }));
 
     expect(createTicket).toHaveBeenCalledWith({
@@ -238,6 +249,7 @@ describe('NewTicketPage', () => {
     await within(screen.getByLabelText('עובד מטפל')).findByRole('option', { name: 'דוד' });
     await userEvent.selectOptions(screen.getByLabelText('עובד מטפל'), '5');
     await userEvent.type(screen.getByLabelText('תיאור התקלה'), 'החלפת שמן');
+    await chooseNoParts();
     await userEvent.click(screen.getByRole('button', { name: 'פתח כרטיס' }));
 
     expect(createTicket).toHaveBeenCalledWith({
@@ -263,6 +275,7 @@ describe('NewTicketPage', () => {
     await screen.findByTestId('existing-vehicle-summary');
 
     await userEvent.type(screen.getByLabelText('תיאור התקלה'), 'החלפת בלמים');
+    await chooseNoParts();
     await userEvent.click(screen.getByRole('button', { name: 'פתח כרטיס' }));
 
     expect(await screen.findByText(/שגיאה בפתיחת הכרטיס/)).toBeInTheDocument();
@@ -320,6 +333,7 @@ describe('NewTicketPage', () => {
     await userEvent.type(screen.getByLabelText('דגם'), '320i');
     await userEvent.type(screen.getByLabelText('שנה'), '2020');
     await userEvent.type(screen.getByLabelText('תיאור התקלה'), 'החלפת שמן');
+    await chooseNoParts();
     await userEvent.click(screen.getByRole('button', { name: 'פתח כרטיס' }));
 
     expect(createTicket).toHaveBeenCalledWith(
@@ -377,6 +391,7 @@ describe('NewTicketPage', () => {
       await userEvent.type(screen.getByLabelText('דגם'), '320i');
       await userEvent.type(screen.getByLabelText('שנה'), '2020');
       await userEvent.type(screen.getByLabelText('תיאור התקלה'), 'החלפת שמן');
+      await chooseNoParts();
       await userEvent.click(screen.getByRole('button', { name: 'פתח כרטיס' }));
 
       expect(await screen.findByText('הכרטיס נפתח בהצלחה')).toBeInTheDocument();
@@ -409,6 +424,7 @@ describe('NewTicketPage', () => {
     await screen.findByTestId('existing-vehicle-summary');
 
     await userEvent.type(screen.getByLabelText('תיאור התקלה'), 'החלפת בלמים');
+    await chooseNoParts();
     await userEvent.click(screen.getByRole('button', { name: 'פתח כרטיס' }));
 
     const backLink = await screen.findByRole('link', { name: 'חזרה ללוח העבודה' });

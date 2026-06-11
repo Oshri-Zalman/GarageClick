@@ -26,13 +26,13 @@ export function validateDetails(user: User, values: TicketDetailsValues): Detail
 }
 
 // The base ticket fields common to both scenarios. The assigned mechanic is the
-// current user for a Mechanic, otherwise the dropdown selection.
+// current user for a Mechanic, otherwise the dropdown selection. Parts are added
+// by each form from its own PartsSelection state (Stage 5).
 export function buildDetailsPayload(user: User, values: TicketDetailsValues) {
   const assignedMechanicId =
     user.role === 'Mechanic' ? user.id : Number(values.assignedMechanicId);
   return {
     assigned_mechanic_id: assignedMechanicId,
     description: values.description.trim(),
-    parts: [],
   };
 }

@@ -12,10 +12,12 @@ vi.mock('../services/tickets', () => ({
   updateTicketStatus: vi.fn(),
   createTicket: vi.fn(),
 }));
+vi.mock('../services/parts', () => ({ getCompatibleParts: vi.fn() }));
 
 import { searchVehicle } from '../services/vehicles';
 import { listMechanics } from '../services/mechanics';
 import { createTicket, listTickets } from '../services/tickets';
+import { getCompatibleParts } from '../services/parts';
 
 let mockUser: User;
 vi.mock('../hooks/useAuth', () => ({
@@ -72,12 +74,18 @@ async function searchPlate(plate = 'vw-1234') {
   await userEvent.click(screen.getByRole('button', { name: /חפש/ }));
 }
 
+// Stage 5: pick the "אחר / ללא חלפים" option so submit is allowed (parts: []).
+async function chooseNoParts() {
+  await userEvent.click(await screen.findByLabelText('אחר / ללא חלפים'));
+}
+
 describe('New Ticket modal on the Work Board', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUser = MANAGER;
     vi.mocked(listMechanics).mockResolvedValue(MECHANICS);
     vi.mocked(listTickets).mockResolvedValue([]);
+    vi.mocked(getCompatibleParts).mockResolvedValue([]);
   });
 
   it('opens the modal with the Hebrew title and the board stays mounted behind', async () => {
@@ -118,6 +126,7 @@ describe('New Ticket modal on the Work Board', () => {
     await within(screen.getByLabelText('עובד מטפל')).findByRole('option', { name: 'דוד' });
     await userEvent.selectOptions(screen.getByLabelText('עובד מטפל'), '5');
     await userEvent.type(screen.getByLabelText('תיאור התקלה'), 'החלפת בלמים');
+    await chooseNoParts();
     await userEvent.click(screen.getByRole('button', { name: 'פתח כרטיס' }));
 
     expect(createTicket).toHaveBeenCalledWith(
@@ -142,6 +151,7 @@ describe('New Ticket modal on the Work Board', () => {
     await within(screen.getByLabelText('עובד מטפל')).findByRole('option', { name: 'דוד' });
     await userEvent.selectOptions(screen.getByLabelText('עובד מטפל'), '5');
     await userEvent.type(screen.getByLabelText('תיאור התקלה'), 'החלפת שמן');
+    await chooseNoParts();
     await userEvent.click(screen.getByRole('button', { name: 'פתח כרטיס' }));
 
     expect(createTicket).toHaveBeenCalledWith(
@@ -168,6 +178,7 @@ describe('New Ticket modal on the Work Board', () => {
     expect(screen.getByTestId('auto-assigned-mechanic')).toHaveTextContent('דוד (אתה)');
 
     await userEvent.type(screen.getByLabelText('תיאור התקלה'), 'החלפת בלמים');
+    await chooseNoParts();
     await userEvent.click(screen.getByRole('button', { name: 'פתח כרטיס' }));
     expect(createTicket).toHaveBeenCalledWith(
       expect.objectContaining({ assigned_mechanic_id: 5 })
@@ -210,6 +221,7 @@ describe('New Ticket modal on the Work Board', () => {
     await searchPlate();
     await screen.findByTestId('existing-vehicle-summary');
     await userEvent.type(screen.getByLabelText('תיאור התקלה'), 'החלפת בלמים');
+    await chooseNoParts();
     await userEvent.click(screen.getByRole('button', { name: 'פתח כרטיס' }));
 
     const back = await screen.findByRole('button', { name: 'חזרה ללוח העבודה' });
