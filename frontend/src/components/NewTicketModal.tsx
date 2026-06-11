@@ -25,7 +25,7 @@ export default function NewTicketModal({ user, onClose, onCreated }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:p-8"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:p-6"
       dir="rtl"
       // Backdrop click closes the modal; clicks inside the panel are stopped below.
       onClick={onClose}
@@ -35,9 +35,11 @@ export default function NewTicketModal({ user, onClose, onCreated }: Props) {
         aria-modal="true"
         aria-labelledby="new-ticket-modal-title"
         onClick={(e) => e.stopPropagation()}
-        className="my-auto w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl"
+        // Wider on laptops/desktops so the form fits without scrolling, while
+        // still sitting as a dialog above the Work Board (never full-screen).
+        className="my-auto w-full max-w-2xl rounded-xl bg-white p-5 shadow-xl lg:max-w-4xl"
       >
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mb-3 flex items-center justify-between gap-3">
           <h2 id="new-ticket-modal-title" className="text-2xl font-bold text-gray-800">
             פתיחת כרטיס עבודה חדש
           </h2>

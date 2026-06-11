@@ -28,7 +28,7 @@ export default function LicensePlateSearch({ onSearch, loading }: Props) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <form onSubmit={handleSubmit} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       <label htmlFor="license-plate" className="mb-2 block text-sm font-semibold text-gray-700">
         מספר רכב
       </label>

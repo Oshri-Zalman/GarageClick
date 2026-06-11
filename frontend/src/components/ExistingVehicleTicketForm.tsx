@@ -43,13 +43,13 @@ export default function ExistingVehicleTicketForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div
-        className="rounded-xl border border-green-200 bg-green-50 p-6"
+        className="rounded-xl border border-green-200 bg-green-50 p-4"
         data-testid="existing-vehicle-summary"
       >
-        <p className="mb-3 font-semibold text-green-800">✓ הרכב נמצא במערכת</p>
-        <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+        <p className="mb-2 font-semibold text-green-800">✓ הרכב נמצא במערכת</p>
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
           <Detail label="מספר רכב" value={vehicle.license_plate} />
           <Detail label="לקוח" value={vehicle.customer_name} />
           <Detail label="טלפון" value={vehicle.customer_phone} />

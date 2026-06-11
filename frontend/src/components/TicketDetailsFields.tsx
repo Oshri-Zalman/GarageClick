@@ -29,7 +29,7 @@ export default function TicketDetailsFields({ user, mechanics, values, errors, o
   const isMechanic = user.role === 'Mechanic';
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {isMechanic ? (
         <div>
           <span className="mb-1 block text-sm font-semibold text-gray-700">עובד מטפל</span>

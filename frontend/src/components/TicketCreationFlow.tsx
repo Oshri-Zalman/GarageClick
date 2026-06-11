@@ -147,9 +147,9 @@ export default function TicketCreationFlow({ user, onCreated, onClose }: Props) 
 
   return (
     <div>
-      <p className="mb-6 text-gray-500">התחל בהזנת מספר הרכב לחיפוש במערכת.</p>
+      <p className="mb-3 text-gray-500">התחל בהזנת מספר הרכב לחיפוש במערכת.</p>
 
-      <div className="mb-6">
+      <div className="mb-4">
         <LicensePlateSearch onSearch={handleSearch} loading={searching} />
         {searchError && (
           <div className="mt-4">
