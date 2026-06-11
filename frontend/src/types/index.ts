@@ -76,6 +76,18 @@ export interface Part {
   quantity_current: number;
 }
 
+// Editable part fields (inventory create + edit forms, FR-7.1). The backend
+// allows manufacturer/model/year_start to be null, but the inventory management
+// screen requires them, so they are non-nullable here.
+export interface PartInput {
+  part_name: string;
+  part_code: string;
+  manufacturer: string;
+  model: string;
+  year_start: number;
+  quantity_current: number;
+}
+
 // A row from GET /api/parts/compatible. The backend flags `available` (stock > 0)
 // so the UI can show out-of-stock parts as disabled (FR-7.2).
 export interface CompatiblePart {

@@ -96,4 +96,11 @@ describe('role access config', () => {
     expect(canManageCustomers('Secretary')).toBe(true);
     expect(canManageCustomers('Mechanic')).toBe(false);
   });
+
+  it('only Manager/Secretary may manage the parts inventory; Mechanic may not', async () => {
+    const { canManageParts } = await import('../config/access');
+    expect(canManageParts('Manager')).toBe(true);
+    expect(canManageParts('Secretary')).toBe(true);
+    expect(canManageParts('Mechanic')).toBe(false);
+  });
 });
