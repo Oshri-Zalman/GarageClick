@@ -1,6 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import type { CreateTicketPayload, Mechanic, User } from '../types';
 import TicketDetailsFields, { type TicketDetailsField } from './TicketDetailsFields';
+import PartsSelection from './PartsSelection';
+import {
+  buildPartsPayload,
+  emptyPartsSelection,
+  validatePartsSelection,
+  type PartsSelectionState,
+} from './ticketParts';
 import {
   buildDetailsPayload,
   emptyDetails,
@@ -56,11 +63,17 @@ export default function NewCustomerVehicleTicketForm({
   const [model, setModel] = useState('');
   const [year, setYear] = useState('');
   const [details, setDetails] = useState(emptyDetails);
+  const [parts, setParts] = useState<PartsSelectionState>(emptyPartsSelection);
+  const [partsError, setPartsError] = useState<string | null>(null);
   const [vehicleErrors, setVehicleErrors] = useState<VehicleErrors>({});
   const [detailErrors, setDetailErrors] = useState<DetailsErrors>({});
 
   const onDetailChange = (field: TicketDetailsField, value: string) =>
     setDetails((prev) => ({ ...prev, [field]: value }));
+
+  // The year as a number once it's a valid 4-digit entry, else null — gates the
+  // compatible-parts lookup until the vehicle is fully known.
+  const yearNumber = /^\d{4}$/.test(year.trim()) ? Number(year.trim()) : null;
 
   const validateVehicle = (): VehicleErrors => {
     const errs: VehicleErrors = {};
@@ -92,9 +105,11 @@ export default function NewCustomerVehicleTicketForm({
     e.preventDefault();
     const vErrs = validateVehicle();
     const dErrs = validateDetails(user, details);
+    const pErr = validatePartsSelection(parts);
     setVehicleErrors(vErrs);
     setDetailErrors(dErrs);
-    if (Object.keys(vErrs).length > 0 || Object.keys(dErrs).length > 0) return;
+    setPartsError(pErr);
+    if (Object.keys(vErrs).length > 0 || Object.keys(dErrs).length > 0 || pErr) return;
 
     onSubmit({
       license_plate: licensePlate,
@@ -105,6 +120,7 @@ export default function NewCustomerVehicleTicketForm({
         year: Number(year.trim()),
       },
       ...buildDetailsPayload(user, details),
+      parts: buildPartsPayload(parts),
     });
   };
 
@@ -194,6 +210,15 @@ export default function NewCustomerVehicleTicketForm({
         values={details}
         errors={detailErrors}
         onChange={onDetailChange}
+      />
+
+      <PartsSelection
+        manufacturer={manufacturer}
+        model={model.trim()}
+        year={yearNumber}
+        value={parts}
+        onChange={setParts}
+        error={partsError}
       />
 
       <button

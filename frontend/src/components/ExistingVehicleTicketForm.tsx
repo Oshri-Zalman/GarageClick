@@ -1,6 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import type { CreateTicketPayload, Mechanic, User, VehicleSearchHit } from '../types';
 import TicketDetailsFields, { type TicketDetailsField } from './TicketDetailsFields';
+import PartsSelection from './PartsSelection';
+import {
+  buildPartsPayload,
+  emptyPartsSelection,
+  validatePartsSelection,
+  type PartsSelectionState,
+} from './ticketParts';
 import {
   buildDetailsPayload,
   emptyDetails,
@@ -27,6 +34,8 @@ export default function ExistingVehicleTicketForm({
 }: Props) {
   const [details, setDetails] = useState(emptyDetails);
   const [errors, setErrors] = useState<DetailsErrors>({});
+  const [parts, setParts] = useState<PartsSelectionState>(emptyPartsSelection);
+  const [partsError, setPartsError] = useState<string | null>(null);
 
   const onChange = (field: TicketDetailsField, value: string) =>
     setDetails((prev) => ({ ...prev, [field]: value }));
@@ -34,11 +43,14 @@ export default function ExistingVehicleTicketForm({
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     const found = validateDetails(user, details);
+    const partsErr = validatePartsSelection(parts);
     setErrors(found);
-    if (Object.keys(found).length > 0) return;
+    setPartsError(partsErr);
+    if (Object.keys(found).length > 0 || partsErr) return;
     onSubmit({
       vehicle_id: vehicle.vehicle_id,
       ...buildDetailsPayload(user, details),
+      parts: buildPartsPayload(parts),
     });
   };
 
@@ -65,6 +77,15 @@ export default function ExistingVehicleTicketForm({
         values={details}
         errors={errors}
         onChange={onChange}
+      />
+
+      <PartsSelection
+        manufacturer={vehicle.manufacturer}
+        model={vehicle.model}
+        year={vehicle.year}
+        value={parts}
+        onChange={setParts}
+        error={partsError}
       />
 
       <button

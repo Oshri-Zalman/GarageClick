@@ -81,12 +81,6 @@ export default function TicketDetailsFields({ user, mechanics, values, errors, o
           </p>
         )}
       </div>
-
-      {/* Parts selection is intentionally out of scope for Stage 4 — it arrives
-          with full inventory management in the next stage. */}
-      <div className="rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
-        🔩 בחירת חלפים תתווסף בשלב הבא (ניהול מלאי).
-      </div>
     </div>
   );
 }
