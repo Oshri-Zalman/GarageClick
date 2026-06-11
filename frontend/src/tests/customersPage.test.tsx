@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { AxiosError } from 'axios';
 import CustomersPage from '../pages/CustomersPage';
 import type { CustomerDetail, CustomerSummary, User } from '../types';
 
@@ -23,7 +24,14 @@ import {
   createCustomer,
   updateCustomer,
 } from '../services/customers';
-import { createVehicle } from '../services/vehicles';
+import { createVehicle, updateVehicle } from '../services/vehicles';
+
+// Builds an AxiosError carrying a backend `detail`, like the real api client.
+function axiosError(detail: string): AxiosError {
+  const err = new AxiosError('request failed');
+  err.response = { data: { detail } } as AxiosError['response'];
+  return err;
+}
 
 // useAuth reads the current user; swap it per test via this mutable ref.
 let mockUser: User;
@@ -239,5 +247,126 @@ describe('CustomersPage — create vehicle', () => {
       year: 2020,
     });
     expect(await screen.findByText('✓ הרכב נוסף בהצלחה.')).toBeInTheDocument();
+  });
+
+  it('shows a known backend error in Hebrew (duplicate plate)', async () => {
+    vi.mocked(createVehicle).mockRejectedValueOnce(
+      axiosError('A vehicle with this license_plate already exists.')
+    );
+    renderPage();
+    await search('0501234567');
+    await userEvent.click(await screen.findByRole('button', { name: '➕ הוסף רכב' }));
+    const form = screen.getByRole('form', { name: 'רכב חדש' });
+
+    await userEvent.type(within(form).getByLabelText('מספר רכב'), '12-345-67');
+    await userEvent.selectOptions(within(form).getByLabelText('יצרן'), 'Volkswagen');
+    await userEvent.type(within(form).getByLabelText('דגם'), 'Golf');
+    await userEvent.type(within(form).getByLabelText('שנה'), '2018');
+    await userEvent.click(within(form).getByRole('button', { name: 'הוסף רכב' }));
+
+    expect(await screen.findByText('מספר רכב זה כבר קיים במערכת.')).toBeInTheDocument();
+  });
+});
+
+describe('CustomersPage — edit vehicle', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(searchCustomersByPhone).mockResolvedValue([SUMMARY]);
+    vi.mocked(getCustomer).mockResolvedValue(DETAIL);
+  });
+
+  async function openEditVehicle() {
+    renderPage();
+    await search('0501234567');
+    await userEvent.click(await screen.findByRole('button', { name: 'ערוך רכב 12-345-67' }));
+    return screen.getByRole('form', { name: 'עריכת רכב' });
+  }
+
+  it('renders the edit-vehicle form prefilled from the vehicle list', async () => {
+    const form = await openEditVehicle();
+    expect(within(form).getByLabelText('מספר רכב')).toHaveValue('12-345-67');
+    expect(within(form).getByLabelText('יצרן')).toHaveValue('Volkswagen');
+    expect(within(form).getByLabelText('דגם')).toHaveValue('Golf');
+    expect(within(form).getByLabelText('שנה')).toHaveValue('2018');
+  });
+
+  it('shows validation errors when a required field is cleared', async () => {
+    const form = await openEditVehicle();
+    await userEvent.clear(within(form).getByLabelText('מספר רכב'));
+    await userEvent.click(within(form).getByRole('button', { name: 'שמור שינויים' }));
+
+    expect(await within(form).findByText('יש להזין מספר רכב')).toBeInTheDocument();
+    expect(updateVehicle).not.toHaveBeenCalled();
+  });
+
+  it('updates the vehicle successfully and reloads the customer detail', async () => {
+    vi.mocked(updateVehicle).mockResolvedValue({
+      id: 1,
+      customer_id: 10,
+      license_plate: '12-345-67',
+      manufacturer: 'Volkswagen',
+      model: 'Golf',
+      year: 2019,
+    });
+    const form = await openEditVehicle();
+
+    await userEvent.clear(within(form).getByLabelText('שנה'));
+    await userEvent.type(within(form).getByLabelText('שנה'), '2019');
+    await userEvent.click(within(form).getByRole('button', { name: 'שמור שינויים' }));
+
+    expect(updateVehicle).toHaveBeenCalledWith(1, {
+      license_plate: '12-345-67',
+      manufacturer: 'Volkswagen',
+      model: 'Golf',
+      year: 2019,
+    });
+    // Detail is reloaded after the update (search load + post-update reload).
+    expect(getCustomer).toHaveBeenCalledTimes(2);
+    expect(await screen.findByText('✓ הרכב עודכן בהצלחה.')).toBeInTheDocument();
+  });
+});
+
+describe('CustomersPage — switching search type', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(searchCustomersByPhone).mockResolvedValue([SUMMARY]);
+    vi.mocked(searchCustomersByPlate).mockResolvedValue([DETAIL]);
+    vi.mocked(getCustomer).mockResolvedValue(DETAIL);
+  });
+
+  it('clears the input when switching from phone to license plate', async () => {
+    renderPage();
+    await userEvent.type(screen.getByRole('textbox'), '0501234567');
+    await userEvent.click(screen.getByRole('radio', { name: 'מספר רכב' }));
+    expect(screen.getByRole('textbox')).toHaveValue('');
+  });
+
+  it('clears the input when switching from license plate to phone', async () => {
+    renderPage();
+    await userEvent.click(screen.getByRole('radio', { name: 'מספר רכב' }));
+    await userEvent.type(screen.getByRole('textbox'), '12-345-67');
+    await userEvent.click(screen.getByRole('radio', { name: 'מספר טלפון' }));
+    expect(screen.getByRole('textbox')).toHaveValue('');
+  });
+
+  it('clears previous results and the selected customer when switching type', async () => {
+    renderPage();
+    await search('0501234567');
+    expect(await screen.findByRole('heading', { name: 'דן כהן' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('radio', { name: 'מספר רכב' }));
+
+    expect(screen.queryByRole('heading', { name: 'דן כהן' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'רכבי הלקוח' })).not.toBeInTheDocument();
+  });
+
+  it('clears a previous search error when switching type', async () => {
+    vi.mocked(searchCustomersByPhone).mockRejectedValueOnce(new Error('500'));
+    renderPage();
+    await search('0501234567');
+    expect(await screen.findByText('שגיאה בחיפוש. נסה שוב.')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('radio', { name: 'מספר רכב' }));
+    expect(screen.queryByText('שגיאה בחיפוש. נסה שוב.')).not.toBeInTheDocument();
   });
 });

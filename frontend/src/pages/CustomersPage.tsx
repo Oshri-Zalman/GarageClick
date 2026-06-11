@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { AxiosError } from 'axios';
 import { useAuth } from '../hooks/useAuth';
 import { canManageCustomers } from '../config/access';
 import {
@@ -25,6 +24,7 @@ import CustomerForm from '../components/CustomerForm';
 import VehicleForm from '../components/VehicleForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
+import { apiErrorMessage } from '../utils/apiErrors';
 
 // Which create/edit form (if any) is currently open.
 type FormState =
@@ -33,16 +33,6 @@ type FormState =
   | { kind: 'customer-edit' }
   | { kind: 'vehicle-create' }
   | { kind: 'vehicle-edit'; vehicle: CustomerVehicle };
-
-// Pull the backend's Hebrew/English detail message off an Axios error, falling
-// back to a generic Hebrew message.
-function errorMessage(err: unknown, fallback: string): string {
-  if (err instanceof AxiosError) {
-    const detail = err.response?.data?.detail;
-    if (typeof detail === 'string') return detail;
-  }
-  return fallback;
-}
 
 // Stage 6 — dedicated Customers & Vehicles management screen (FR-1). Search by
 // phone or license plate, view a customer with their vehicles, and create/edit
@@ -81,7 +71,7 @@ export default function CustomersPage() {
       setSelected(detail);
       return detail;
     } catch (err) {
-      setSearchError(errorMessage(err, 'שגיאה בטעינת פרטי הלקוח. נסה שוב.'));
+      setSearchError(apiErrorMessage(err, 'שגיאה בטעינת פרטי הלקוח. נסה שוב.'));
       return null;
     } finally {
       setLoadingDetail(false);
@@ -107,7 +97,7 @@ export default function CustomersPage() {
         await loadDetail(summaries[0].id);
       }
     } catch (err) {
-      setSearchError(errorMessage(err, 'שגיאה בחיפוש. נסה שוב.'));
+      setSearchError(apiErrorMessage(err, 'שגיאה בחיפוש. נסה שוב.'));
     } finally {
       setSearching(false);
     }
@@ -115,6 +105,18 @@ export default function CustomersPage() {
 
   const retrySearch = () => {
     if (lastSearch) runSearch(lastSearch.type, lastSearch.query);
+  };
+
+  // Switching the search type abandons the previous (different-type) search:
+  // drop its results, selected customer, error and empty-state so the user starts
+  // fresh. Any open create/edit form is closed too.
+  const onSearchTypeChange = () => {
+    setResults(null);
+    setSelected(null);
+    setSearchError(null);
+    setLastSearch(null);
+    setSuccess(null);
+    closeForm();
   };
 
   const openNewCustomer = () => {
@@ -141,7 +143,7 @@ export default function CustomersPage() {
         setSuccess('הלקוח נוצר בהצלחה.');
       }
     } catch (err) {
-      setFormError(errorMessage(err, 'שמירת הלקוח נכשלה. נסה שוב.'));
+      setFormError(apiErrorMessage(err, 'שמירת הלקוח נכשלה. נסה שוב.'));
     } finally {
       setSubmitting(false);
     }
@@ -162,7 +164,7 @@ export default function CustomersPage() {
       closeForm();
       await loadDetail(selected.id);
     } catch (err) {
-      setFormError(errorMessage(err, 'שמירת הרכב נכשלה. נסה שוב.'));
+      setFormError(apiErrorMessage(err, 'שמירת הרכב נכשלה. נסה שוב.'));
     } finally {
       setSubmitting(false);
     }
@@ -183,7 +185,7 @@ export default function CustomersPage() {
         )}
       </div>
 
-      <CustomerSearch searching={searching} onSearch={runSearch} />
+      <CustomerSearch searching={searching} onSearch={runSearch} onTypeChange={onSearchTypeChange} />
 
       {success && (
         <div

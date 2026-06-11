@@ -4,6 +4,9 @@ import type { CustomerSearchType } from '../services/customers';
 interface Props {
   searching: boolean;
   onSearch: (type: CustomerSearchType, query: string) => void;
+  // Called when the user switches the search type, so the page can clear the
+  // results/selection/errors left over from the previous (different-type) search.
+  onTypeChange?: () => void;
 }
 
 const fieldClass =
@@ -11,10 +14,20 @@ const fieldClass =
 
 // RTL search panel (FR-1): pick a search type (phone number / license plate) and
 // enter a query. Empty queries are blocked with an inline Hebrew message.
-export default function CustomerSearch({ searching, onSearch }: Props) {
+export default function CustomerSearch({ searching, onSearch, onTypeChange }: Props) {
   const [type, setType] = useState<CustomerSearchType>('phone');
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  // Switching the search type starts a fresh search: clear the leftover query and
+  // inline error, and let the page drop the previous results/selection/errors.
+  const switchType = (next: CustomerSearchType) => {
+    if (next === type) return;
+    setType(next);
+    setQuery('');
+    setError(null);
+    onTypeChange?.();
+  };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -42,10 +55,7 @@ export default function CustomerSearch({ searching, onSearch }: Props) {
             name="search-type"
             value="phone"
             checked={type === 'phone'}
-            onChange={() => {
-              setType('phone');
-              setError(null);
-            }}
+            onChange={() => switchType('phone')}
           />
           מספר טלפון
         </label>
@@ -55,10 +65,7 @@ export default function CustomerSearch({ searching, onSearch }: Props) {
             name="search-type"
             value="license_plate"
             checked={type === 'license_plate'}
-            onChange={() => {
-              setType('license_plate');
-              setError(null);
-            }}
+            onChange={() => switchType('license_plate')}
           />
           מספר רכב
         </label>
