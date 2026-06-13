@@ -1,16 +1,11 @@
 import { logout } from '../services/auth';
 import { useNavigate } from 'react-router-dom';
+import { roleLabel } from '../config/roles';
 
 interface Props {
   userName?: string;
   userRole?: string;
 }
-
-const ROLE_LABELS: Record<string, string> = {
-  Manager: 'מנהל',
-  Secretary: 'מזכירה',
-  Mechanic: 'מכונאי',
-};
 
 export default function Header({ userName, userRole }: Props) {
   const navigate = useNavigate();
@@ -31,7 +26,7 @@ export default function Header({ userName, userRole }: Props) {
             {userName}
             {userRole && (
               <span className="mr-2 rounded-full bg-amber-600 px-2 py-0.5 text-xs">
-                {ROLE_LABELS[userRole] ?? userRole}
+                {roleLabel(userRole)}
               </span>
             )}
           </span>
