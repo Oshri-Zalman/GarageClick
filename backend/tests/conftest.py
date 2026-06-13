@@ -26,6 +26,10 @@ ensure_database(settings.DB_NAME)
 Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 
+# Seed the reference catalog once (it is not wiped between tests).
+from app.init_db import seed_catalog  # noqa: E402
+seed_catalog()
+
 _TABLES = [
     "audit_log",
     "ticket_parts_used",

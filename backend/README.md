@@ -23,9 +23,16 @@ python -m app.init_db           # create database + tables from the ORM models
 uvicorn app.main:app --reload   # run -> http://127.0.0.1:8000  (docs at /docs)
 ```
 
-> **Schema note:** `python -m app.init_db` creates missing tables and applies
-> small additive column migrations (e.g. `users.last_login`). Re-run it after
-> pulling changes that add columns to existing tables.
+> **Schema note:** `python -m app.init_db` creates missing tables, applies
+> small additive column migrations (e.g. `users.last_login`, `tickets_work.archived_at`,
+> `parts_inventory.part_code` UNIQUE), and seeds the vehicle make/model catalog
+> (`vehicle_models`). Re-run it after pulling changes that add columns.
+
+### Ticket lifecycle & archiving
+After a ticket reaches **Completed**, `POST /api/tickets/{id}/archive` closes it:
+`archived_at` is stamped, the ticket stays in the DB and in vehicle/customer
+history, but it is removed from the active board (`GET /api/tickets` excludes
+archived rows unless `include_archived=true`).
 
 ### Demo data
 `python -m app.seed` populates the DB with demo users (manager / secretary /
@@ -109,7 +116,11 @@ or multi-vehicle part can be modeled as a single row.
 | GET  | `/api/vehicles/{id}/tickets` | Manager, Secretary | Ticket history for a vehicle |
 | GET  | `/api/customers/{id}/tickets` | Manager, Secretary | Ticket history for a customer (all vehicles) |
 | GET  | `/api/mechanics` | Manager, Secretary | Active assignable users (Mechanic/Manager) for the "עובד מטפל" dropdown — minimal fields only |
+| GET  | `/api/catalog/manufacturers` | all roles | Canonical manufacturer list (for the make dropdown) |
+| GET  | `/api/catalog/models?manufacturer=` | all roles | Models for a manufacturer (cascading dropdown) |
 | POST | `/api/tickets` | all roles | Open a ticket (existing vehicle, or new customer+vehicle) |
+| POST | `/api/tickets/{id}/archive` | all roles* | Close a **Completed** ticket: stays in DB/history, leaves the board |
+| GET  | `/api/tickets?include_archived=true` | all roles* | Include archived tickets (default excludes them) |
 | PATCH| `/api/tickets/{id}/status` | all roles* | Status change via state machine |
 | GET  | `/api/tickets`, `/api/tickets/{id}` | all roles* | List / detail (Mechanic: own only) |
 | GET  | `/api/parts/compatible?manufacturer=&model=&year=` | all roles | Compatible parts (out-of-stock flagged) |

@@ -51,6 +51,7 @@ def _fetch_ticket(db: Session, ticket_id: int) -> dict | None:
         "created_at": t.created_at,
         "started_at": t.started_at,
         "completed_at": t.completed_at,
+        "archived_at": t.archived_at,
         "license_plate": v.license_plate,
         "manufacturer": v.manufacturer,
         "model": v.model,
@@ -257,16 +258,55 @@ def update_status(
     return result
 
 
+@router.post("/{ticket_id}/archive")
+def archive_ticket(
+    ticket_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_roles(*ALL_ROLES)),
+):
+    """Close/archive a COMPLETED ticket: it stays in the DB and history but
+    leaves the active board. Same authorization as a status change."""
+    ticket = db.get(TicketWork, ticket_id)
+    if ticket is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Ticket not found.")
+    if not authorize_status_change(user, ticket):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "You are not allowed to archive this ticket."
+        )
+    if ticket.status != "Completed":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Only a completed ticket can be archived."
+        )
+    if ticket.archived_at is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Ticket is already archived.")
+
+    ticket.archived_at = func.now()
+    db.add(
+        AuditLog(
+            user_id=user["user_id"],
+            action="ticket_archived",
+            resource_type="ticket",
+            resource_id=ticket_id,
+            old_value=None,
+            new_value="archived",
+        )
+    )
+    db.commit()
+    return _fetch_ticket(db, ticket_id)
+
+
 @router.get("")
 def list_tickets(
     status_filter: str | None = Query(default=None, alias="status"),
     mechanic_id: int | None = Query(default=None),
+    include_archived: bool = Query(default=False),
     page: dict = Depends(pagination),
     db: Session = Depends(get_db),
     user: dict = Depends(require_roles(*ALL_ROLES)),
 ):
-    """Paginated ticket list. Mechanic is forced to their own; Manager/Secretary
-    see all (optionally filtered by mechanic_id / status)."""
+    """Paginated ticket list (the Kanban board). Mechanic is forced to their own;
+    Manager/Secretary see all. Archived (closed) tickets are excluded unless
+    include_archived=true."""
     conditions = []
     if user["role"] == "Mechanic":
         conditions.append(TicketWork.assigned_mechanic_id == user["user_id"])
@@ -274,6 +314,8 @@ def list_tickets(
         conditions.append(TicketWork.assigned_mechanic_id == mechanic_id)
     if status_filter:
         conditions.append(TicketWork.status == status_filter)
+    if not include_archived:
+        conditions.append(TicketWork.archived_at.is_(None))
 
     total = db.scalar(
         select(func.count()).select_from(TicketWork).where(*conditions)

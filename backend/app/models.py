@@ -10,6 +10,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
     text,
 )
@@ -92,6 +93,9 @@ class TicketWork(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
     started_at: Mapped[datetime | None] = mapped_column(DateTime)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # Set when a completed ticket is closed/archived — kept in the DB & history,
+    # but removed from the active Kanban board.
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime)
 
 
 class PartInventory(Base):
@@ -120,6 +124,18 @@ class TicketPartUsed(Base):
     part_id: Mapped[int] = mapped_column(ForeignKey("parts_inventory.id"), nullable=False)
     quantity_used: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+
+
+class VehicleModel(Base):
+    """Reference catalog of vehicle manufacturers and their models — the source
+    of truth for the frontend's cascading make/model dropdowns. Each row links a
+    model to its manufacturer."""
+    __tablename__ = "vehicle_models"
+    __table_args__ = (UniqueConstraint("manufacturer", "model", name="uq_vehicle_model"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    manufacturer: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    model: Mapped[str] = mapped_column(String(100), nullable=False)
 
 
 class AuditLog(Base):
