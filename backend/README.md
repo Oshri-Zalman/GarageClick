@@ -23,9 +23,16 @@ python -m app.init_db           # create database + tables from the ORM models
 uvicorn app.main:app --reload   # run -> http://127.0.0.1:8000  (docs at /docs)
 ```
 
-> **Schema note:** `python -m app.init_db` creates missing tables and applies
-> small additive column migrations (e.g. `users.last_login`). Re-run it after
-> pulling changes that add columns to existing tables.
+> **Schema note:** `python -m app.init_db` creates missing tables, applies
+> small additive column migrations (e.g. `users.last_login`, `tickets_work.archived_at`,
+> `parts_inventory.part_code` UNIQUE), and seeds the vehicle make/model catalog
+> (`vehicle_models`). Re-run it after pulling changes that add columns.
+
+### Ticket lifecycle & archiving
+After a ticket reaches **Completed**, `POST /api/tickets/{id}/archive` closes it:
+`archived_at` is stamped, the ticket stays in the DB and in vehicle/customer
+history, but it is removed from the active board (`GET /api/tickets` excludes
+archived rows unless `include_archived=true`).
 
 ### Demo data
 `python -m app.seed` populates the DB with demo users (manager / secretary /
@@ -84,6 +91,12 @@ Bad input is rejected with `422` and a clear message instead of reaching the DB:
 - **quantity_current** ≥ 0, part **quantity** ≥ 1, ids > 0.
 - **string length caps** matching the DB columns (e.g. names ≤ 255, description ≤ 1000), so oversized input is a `422` rather than a `500`.
 - **new_status** must be one of the three valid statuses.
+- **part_code** is UNIQUE — a duplicate on create/update returns `409`.
+
+### Parts compatibility (NULL = wildcard)
+In `GET /api/parts/compatible`, a part whose `manufacturer`, `model`, or
+`year_start` is `NULL` matches **any** vehicle on that dimension — so a general
+or multi-vehicle part can be modeled as a single row.
 
 ## Endpoints
 
@@ -93,7 +106,7 @@ Bad input is rejected with `422` and a clear message instead of reaching the DB:
 | POST | `/api/auth/login` | public | Exchange credentials for a JWT (records `last_login`) |
 | GET  | `/api/auth/verify-token` | any role | Validate token + echo identity |
 | POST | `/api/auth/logout` | any role | Revoke the caller's token |
-| GET  | `/api/customers/search?license_plate=` | all roles | Search customer by plate |
+| GET  | `/api/customers/search?license_plate=` or `?phone=` | all roles | Search customer by plate, or by phone (partial, digits-only) |
 | GET  | `/api/customers` | Manager, Secretary | List customers |
 | GET/POST | `/api/customers`, `/api/customers/{id}` | see code | Read/create |
 | PUT  | `/api/customers/{id}` | Manager, Secretary | Update |
@@ -103,11 +116,16 @@ Bad input is rejected with `422` and a clear message instead of reaching the DB:
 | GET  | `/api/vehicles/{id}/tickets` | Manager, Secretary | Ticket history for a vehicle |
 | GET  | `/api/customers/{id}/tickets` | Manager, Secretary | Ticket history for a customer (all vehicles) |
 | GET  | `/api/mechanics` | Manager, Secretary | Active assignable users (Mechanic/Manager) for the "עובד מטפל" dropdown — minimal fields only |
+| GET  | `/api/catalog/manufacturers` | all roles | Canonical manufacturer list (for the make dropdown) |
+| GET  | `/api/catalog/models?manufacturer=` | all roles | Models for a manufacturer (cascading dropdown) |
 | POST | `/api/tickets` | all roles | Open a ticket (existing vehicle, or new customer+vehicle) |
+| POST | `/api/tickets/{id}/archive` | all roles* | Close a **Completed** ticket: stays in DB/history, leaves the board |
+| GET  | `/api/tickets?include_archived=true` | all roles* | Include archived tickets (default excludes them) |
 | PATCH| `/api/tickets/{id}/status` | all roles* | Status change via state machine |
 | GET  | `/api/tickets`, `/api/tickets/{id}` | all roles* | List / detail (Mechanic: own only) |
 | GET  | `/api/parts/compatible?manufacturer=&model=&year=` | all roles | Compatible parts (out-of-stock flagged) |
-| GET  | `/api/parts/inventory` | Manager, Secretary | Full stock list |
+| GET  | `/api/parts/inventory?manufacturer=&model=&part_name=&part_code=` | Manager, Secretary | Stock list, server-side filtered + paginated |
+| GET  | `/api/staff/tickets/summary` | Manager, Secretary | Operational ticket counts + avg time (no per-employee data) |
 | POST/PUT | `/api/parts`, `/api/parts/{id}` | Manager, Secretary | Add / update part |
 | GET  | `/api/parts/reports/consumption?start_date=&end_date=` | Manager, Secretary | Parts consumption: total, per-day, **per-part**, by vehicle make, by employee (FR-7.6) |
 | GET  | `/api/admin/employees` | Manager | Team monitoring (open + completed-today per employee) |

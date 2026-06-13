@@ -1,4 +1,6 @@
 """Customer routes — CRUD + search by license_plate (FR-1)."""
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -62,16 +64,30 @@ def _vehicles_of(db: Session, customer_id: int) -> list[dict]:
 
 @router.get("/search")
 def search_customers(
-    license_plate: str = Query(...),
+    license_plate: str | None = Query(default=None),
+    phone: str | None = Query(default=None),
     db: Session = Depends(get_db),
     _: dict = Depends(require_roles(*ALL_ROLES)),
 ):
-    """Find the customer that owns the given plate (with their vehicles)."""
-    stmt = (
-        select(Customer)
-        .join(Vehicle, Vehicle.customer_id == Customer.id)
-        .where(Vehicle.license_plate == license_plate)
-    )
+    """Find customers by vehicle license_plate OR by phone (partial, digits-only
+    match). Returns matching customers with their vehicles."""
+    if not license_plate and not phone:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            'Provide a "license_plate" or "phone" query parameter.',
+        )
+
+    if license_plate:
+        stmt = (
+            select(Customer)
+            .join(Vehicle, Vehicle.customer_id == Customer.id)
+            .where(Vehicle.license_plate == license_plate)
+        )
+    else:
+        # Strip separators and match the stored (normalized) phone partially.
+        digits = re.sub(r"\D", "", phone)
+        stmt = select(Customer).where(Customer.phone_number.like(f"%{digits}%"))
+
     results = []
     for customer in db.scalars(stmt).all():
         results.append({**_serialize(customer), "vehicles": _vehicles_of(db, customer.id)})
