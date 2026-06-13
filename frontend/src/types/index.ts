@@ -191,6 +191,48 @@ export interface CreateTicketNew {
 
 export type CreateTicketPayload = CreateTicketExisting | CreateTicketNew;
 
+// GET /api/admin/tickets/summary — status counts plus the average completion
+// time across completed tickets (Manager only). `avg_completion_minutes` is null
+// when no completed ticket has both a start and completion timestamp.
+export interface TicketsSummary {
+  total_pending: number;
+  total_in_progress: number;
+  total_completed: number;
+  avg_completion_minutes: number | null;
+}
+
+// GET /api/admin/employees — team monitoring row (Manager only). `online` and
+// `last_login` may be null: real-time presence is not tracked by the backend and
+// last_login is only set once a user has logged in.
+export interface EmployeeMonitorRow {
+  id: number;
+  name: string | null;
+  role: Role;
+  online: boolean | null;
+  last_login: string | null;
+  tickets_open: number;
+  tickets_completed_today: number;
+}
+
+// GET /api/admin/tickets/by-day — per-day workload row (Manager only).
+export interface TicketsByDayRow {
+  date: string;
+  tickets_created: number;
+  tickets_completed: number;
+  avg_completion_minutes: number | null;
+}
+
+// GET /api/admin/reports/performance — quality-oriented metrics for a single
+// mechanic (Manager only). The backend does not model ticket difficulty or a
+// quality score yet, so only the time/throughput metrics are exposed.
+export interface PerformanceReport {
+  mechanic_id: number;
+  mechanic_name: string | null;
+  tickets_completed: number;
+  total_work_hours: number;
+  avg_time_per_ticket_minutes: number | null;
+}
+
 export interface AuthToken {
   token: string;
   user_id: number;
