@@ -84,6 +84,12 @@ Bad input is rejected with `422` and a clear message instead of reaching the DB:
 - **quantity_current** ≥ 0, part **quantity** ≥ 1, ids > 0.
 - **string length caps** matching the DB columns (e.g. names ≤ 255, description ≤ 1000), so oversized input is a `422` rather than a `500`.
 - **new_status** must be one of the three valid statuses.
+- **part_code** is UNIQUE — a duplicate on create/update returns `409`.
+
+### Parts compatibility (NULL = wildcard)
+In `GET /api/parts/compatible`, a part whose `manufacturer`, `model`, or
+`year_start` is `NULL` matches **any** vehicle on that dimension — so a general
+or multi-vehicle part can be modeled as a single row.
 
 ## Endpoints
 
@@ -93,7 +99,7 @@ Bad input is rejected with `422` and a clear message instead of reaching the DB:
 | POST | `/api/auth/login` | public | Exchange credentials for a JWT (records `last_login`) |
 | GET  | `/api/auth/verify-token` | any role | Validate token + echo identity |
 | POST | `/api/auth/logout` | any role | Revoke the caller's token |
-| GET  | `/api/customers/search?license_plate=` | all roles | Search customer by plate |
+| GET  | `/api/customers/search?license_plate=` or `?phone=` | all roles | Search customer by plate, or by phone (partial, digits-only) |
 | GET  | `/api/customers` | Manager, Secretary | List customers |
 | GET/POST | `/api/customers`, `/api/customers/{id}` | see code | Read/create |
 | PUT  | `/api/customers/{id}` | Manager, Secretary | Update |
@@ -107,7 +113,8 @@ Bad input is rejected with `422` and a clear message instead of reaching the DB:
 | PATCH| `/api/tickets/{id}/status` | all roles* | Status change via state machine |
 | GET  | `/api/tickets`, `/api/tickets/{id}` | all roles* | List / detail (Mechanic: own only) |
 | GET  | `/api/parts/compatible?manufacturer=&model=&year=` | all roles | Compatible parts (out-of-stock flagged) |
-| GET  | `/api/parts/inventory` | Manager, Secretary | Full stock list |
+| GET  | `/api/parts/inventory?manufacturer=&model=&part_name=&part_code=` | Manager, Secretary | Stock list, server-side filtered + paginated |
+| GET  | `/api/staff/tickets/summary` | Manager, Secretary | Operational ticket counts + avg time (no per-employee data) |
 | POST/PUT | `/api/parts`, `/api/parts/{id}` | Manager, Secretary | Add / update part |
 | GET  | `/api/parts/reports/consumption?start_date=&end_date=` | Manager, Secretary | Parts consumption: total, per-day, **per-part**, by vehicle make, by employee (FR-7.6) |
 | GET  | `/api/admin/employees` | Manager | Team monitoring (open + completed-today per employee) |

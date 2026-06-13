@@ -14,7 +14,11 @@ from . import models  # noqa: F401  (import registers the models on Base.metadat
 # ALTER that ignores the "duplicate column" error (MySQL 1060).
 _COLUMN_MIGRATIONS = [
     "ALTER TABLE users ADD COLUMN last_login DATETIME NULL",
+    "ALTER TABLE parts_inventory ADD CONSTRAINT uq_parts_part_code UNIQUE (part_code)",
 ]
+
+# Errors that mean "already applied" and can be safely ignored.
+_ALREADY_APPLIED = ("1060", "Duplicate column", "1061", "Duplicate key name")
 
 
 def _apply_column_migrations() -> None:
@@ -23,10 +27,17 @@ def _apply_column_migrations() -> None:
             try:
                 conn.execute(text(sql))
                 conn.commit()
-            except Exception as exc:  # duplicate column -> already applied
+            except Exception as exc:
                 conn.rollback()
-                if "1060" not in str(exc) and "Duplicate column" not in str(exc):
-                    raise
+                msg = str(exc)
+                if any(token in msg for token in _ALREADY_APPLIED):
+                    continue  # already applied
+                if "1062" in msg or "Duplicate entry" in msg:
+                    # Existing duplicate data blocks a UNIQUE constraint — warn,
+                    # don't crash the whole init.
+                    print(f"  WARNING: skipped migration (duplicate data): {sql}")
+                    continue
+                raise
 
 
 def main() -> None:

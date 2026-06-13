@@ -2,7 +2,8 @@
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -38,12 +39,15 @@ def get_compatible(
 ):
     """Parts matching make/model with year_start <= year. Out-of-stock parts are
     returned too, flagged available=false (FR-7.2)."""
+    # A NULL field is a wildcard: a part with manufacturer/model/year_start = NULL
+    # is considered compatible with ANY vehicle on that dimension (general or
+    # multi-vehicle parts).
     rows = db.scalars(
         select(PartInventory)
         .where(
-            PartInventory.manufacturer == manufacturer,
-            PartInventory.model == model,
-            PartInventory.year_start <= year,
+            or_(PartInventory.manufacturer == manufacturer, PartInventory.manufacturer.is_(None)),
+            or_(PartInventory.model == model, PartInventory.model.is_(None)),
+            or_(PartInventory.year_start <= year, PartInventory.year_start.is_(None)),
         )
         .order_by(PartInventory.part_name)
     ).all()
@@ -64,13 +68,30 @@ def get_compatible(
 
 @router.get("/inventory")
 def list_inventory(
+    manufacturer: str | None = Query(default=None),
+    model: str | None = Query(default=None),
+    part_name: str | None = Query(default=None),
+    part_code: str | None = Query(default=None),
     page: dict = Depends(pagination),
     db: Session = Depends(get_db),
     _: dict = Depends(require_roles(*STAFF)),
 ):
-    total = db.scalar(select(func.count()).select_from(PartInventory))
+    """Server-side filtered + paginated inventory. manufacturer/model are exact;
+    part_name/part_code are partial (LIKE)."""
+    conditions = []
+    if manufacturer:
+        conditions.append(PartInventory.manufacturer == manufacturer)
+    if model:
+        conditions.append(PartInventory.model == model)
+    if part_name:
+        conditions.append(PartInventory.part_name.like(f"%{part_name}%"))
+    if part_code:
+        conditions.append(PartInventory.part_code.like(f"%{part_code}%"))
+
+    total = db.scalar(select(func.count()).select_from(PartInventory).where(*conditions))
     rows = db.scalars(
         select(PartInventory)
+        .where(*conditions)
         .order_by(PartInventory.part_name)
         .limit(page["limit"])
         .offset(page["offset"])
@@ -86,7 +107,11 @@ def create_part(
 ):
     part = PartInventory(**body.model_dump())
     db.add(part)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "part_code already exists.")
     db.refresh(part)
     return _serialize(part)
 
@@ -106,7 +131,11 @@ def update_part(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Provide at least one field to update.")
     for key, value in data.items():
         setattr(part, key, value)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "part_code already exists.")
     db.refresh(part)
     return _serialize(part)
 

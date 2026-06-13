@@ -48,9 +48,13 @@ def create_vehicle(customer_id, license_plate="123-456",
                 "manufacturer": manufacturer, "model": model, "year": year}
 
 
-def create_part(part_name="Front brake disc", part_code="BRK-001",
+def create_part(part_name="Front brake disc", part_code=None,
                 manufacturer="Volkswagen", model="Golf", year_start=2015,
                 quantity_current=10):
+    # Unique part_code by default so tests can create many parts without
+    # tripping the part_code UNIQUE constraint.
+    if part_code is None:
+        part_code = f"P-{secrets.token_hex(4)}"
     with SessionLocal() as db:
         p = PartInventory(
             part_name=part_name,

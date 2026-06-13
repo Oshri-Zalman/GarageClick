@@ -99,7 +99,7 @@ class PartInventory(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     part_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    part_code: Mapped[str] = mapped_column(String(50), nullable=False)
+    part_code: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     manufacturer: Mapped[str | None] = mapped_column(String(100))
     model: Mapped[str | None] = mapped_column(String(100))
     year_start: Mapped[int | None] = mapped_column(Integer)

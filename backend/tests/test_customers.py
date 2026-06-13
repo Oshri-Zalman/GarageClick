@@ -46,7 +46,9 @@ class TestSearchCustomers:
         assert body[0]["full_name"] == "דן כהן"
         assert body[0]["vehicles"][0]["license_plate"] == "123-456"
 
-    def test_missing_query_422(self, client):
+    def test_missing_query_400(self, client):
+        # Both license_plate and phone are optional now; providing neither is a
+        # clear 400 ("provide a license_plate or phone").
         mechanic, _ = tokens()
         res = client.get("/api/customers/search", headers=auth(mechanic))
-        assert res.status_code == 422
+        assert res.status_code == 400
