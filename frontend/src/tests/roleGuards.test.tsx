@@ -8,6 +8,18 @@ import type { Role } from '../types';
 vi.mock('../services/tickets', () => ({
   listTickets: vi.fn().mockResolvedValue([]),
   updateTicketStatus: vi.fn(),
+  archiveTicket: vi.fn(),
+}));
+
+// The Secretary dashboard reads the staff summary on mount; stub it so these
+// route-integration tests stay offline.
+vi.mock('../services/staff', () => ({
+  getStaffTicketsSummary: vi.fn().mockResolvedValue({
+    total_pending: 0,
+    total_in_progress: 0,
+    total_completed: 0,
+    avg_completion_minutes: null,
+  }),
 }));
 
 // These are full-app integration tests: they exercise the real auth service

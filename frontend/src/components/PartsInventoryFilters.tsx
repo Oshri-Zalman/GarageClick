@@ -8,9 +8,9 @@ interface Props {
 const fieldClass =
   'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none';
 
-// Client-side search/filter controls for the inventory list (FR-7). All four
-// fields are case-insensitive substring matches applied by the page; the backend
-// /inventory endpoint has no filter params, so filtering happens on the client.
+// Search/filter controls for the inventory list (FR-7). The page sends these to
+// the backend as query params (Stage 7 server-side filtering): manufacturer/model
+// are matched exactly, part_name/part_code partially.
 export default function PartsInventoryFilters({ filters, onChange }: Props) {
   const set = (key: keyof PartFilters) => (e: React.ChangeEvent<HTMLInputElement>) =>
     onChange({ ...filters, [key]: e.target.value });

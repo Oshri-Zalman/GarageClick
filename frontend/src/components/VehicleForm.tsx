@@ -2,21 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import type { CustomerVehicle, VehicleInput } from '../types';
 import { normalizePlate, validatePlate } from '../utils/licensePlate';
 import { validateYear } from '../utils/year';
-
-// Common manufacturers — "selection from a list, not free text" (NFR-4). Mirrors
-// the list used in the ticket creation flow.
-const MANUFACTURERS = [
-  'Volkswagen',
-  'BMW',
-  'Toyota',
-  'Hyundai',
-  'Kia',
-  'Mazda',
-  'Mercedes-Benz',
-  'Skoda',
-  'Audi',
-  'Ford',
-];
+import ManufacturerModelFields from './ManufacturerModelFields';
 
 interface Props {
   // When provided, the form edits this vehicle; otherwise it creates a new one
@@ -87,30 +73,16 @@ export default function VehicleForm({ vehicle, submitting, error, onSubmit, onCa
             className={fieldClass}
           />
         </Field>
-        <Field id="vehicle-manufacturer-field" label="יצרן" error={errors.manufacturer}>
-          <select
-            id="vehicle-manufacturer-field"
-            value={manufacturer}
-            onChange={(e) => setManufacturer(e.target.value)}
-            className={fieldClass}
-          >
-            <option value="">בחר יצרן...</option>
-            {MANUFACTURERS.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field id="vehicle-model-field" label="דגם" error={errors.model}>
-          <input
-            id="vehicle-model-field"
-            type="text"
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            className={fieldClass}
-          />
-        </Field>
+        <ManufacturerModelFields
+          idPrefix="vehicle"
+          fieldClass={fieldClass}
+          manufacturer={manufacturer}
+          model={model}
+          onManufacturerChange={setManufacturer}
+          onModelChange={setModel}
+          manufacturerError={errors.manufacturer}
+          modelError={errors.model}
+        />
         <Field id="vehicle-year-field" label="שנה" error={errors.year}>
           <input
             id="vehicle-year-field"

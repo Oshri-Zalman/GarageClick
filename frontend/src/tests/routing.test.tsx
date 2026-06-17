@@ -24,7 +24,7 @@ vi.mock('../services/auth', () => ({
 // PartsPage fetches the inventory on mount; stub the service so this synchronous
 // render check never hits the network.
 vi.mock('../services/parts', () => ({
-  getAllParts: vi.fn().mockResolvedValue([]),
+  getInventory: vi.fn().mockResolvedValue({ items: [], page: 1, limit: 200, total: 0 }),
   createPart: vi.fn(),
   updatePart: vi.fn(),
   updatePartQuantity: vi.fn(),

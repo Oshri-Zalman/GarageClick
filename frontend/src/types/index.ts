@@ -140,6 +140,9 @@ export interface KanbanTicket {
   customer_name: string;
   customer_phone: string;
   mechanic_name: string | null;
+  // Set when the ticket has been closed/archived (Stage 8). The active board list
+  // omits archived tickets, but the archive response carries this timestamp.
+  archived_at?: string | null;
 }
 
 // Standard paginated envelope used by all list endpoints (TDD §7).

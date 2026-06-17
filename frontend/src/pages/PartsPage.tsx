@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { canManageParts } from '../config/access';
-import { createPart, getAllParts, updatePart, updatePartQuantity } from '../services/parts';
+import {
+  createPart,
+  getInventory,
+  updatePart,
+  updatePartQuantity,
+  type InventoryQuery,
+} from '../services/parts';
 import type { Part, PartInput } from '../types';
 import { apiErrorMessage } from '../utils/apiErrors';
 import PartsInventoryTable from '../components/PartsInventoryTable';
@@ -38,18 +44,35 @@ export default function PartsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Fetches the inventory and folds the result into state. State is only ever
-  // touched asynchronously (inside the promise callbacks), so this is safe to
-  // call from an effect without triggering cascading synchronous renders.
+  // The active server-side query, derived from the filter fields. Blank fields
+  // are dropped so they aren't sent. manufacturer/model are exact matches on the
+  // backend; part_name/part_code are partial (Stage 7 server-side filtering).
+  const query = useMemo<InventoryQuery>(() => {
+    const q: InventoryQuery = {};
+    if (filters.manufacturer.trim()) q.manufacturer = filters.manufacturer.trim();
+    if (filters.model.trim()) q.model = filters.model.trim();
+    if (filters.partName.trim()) q.part_name = filters.partName.trim();
+    if (filters.partCode.trim()) q.part_code = filters.partCode.trim();
+    return q;
+  }, [filters]);
+
+  const hasFilters = Object.keys(query).length > 0;
+
+  // Fetches one page of the (server-filtered) inventory and folds the items into
+  // state. State is only ever touched asynchronously (inside the promise
+  // callbacks), so this is safe to call from an effect without triggering
+  // cascading synchronous renders.
   const fetchParts = useCallback(
     () =>
-      getAllParts()
-        .then(setParts)
+      getInventory(query)
+        .then((res) => setParts(res.items))
         .catch((err) => setLoadError(apiErrorMessage(err, 'שגיאה בטעינת המלאי. נסה שוב.')))
         .finally(() => setLoading(false)),
-    []
+    [query]
   );
 
+  // Refetch whenever the filter-derived query changes (the backend does the
+  // filtering now, so each filter change is a new request).
   useEffect(() => {
     fetchParts();
   }, [fetchParts]);
@@ -62,19 +85,7 @@ export default function PartsPage() {
     return fetchParts();
   }, [fetchParts]);
 
-  // Case-insensitive substring filtering across the four search fields (FR-7).
-  const filtered = useMemo(() => {
-    if (!parts) return [];
-    const match = (value: string | null, needle: string) =>
-      needle.trim() === '' || (value ?? '').toLowerCase().includes(needle.trim().toLowerCase());
-    return parts.filter(
-      (p) =>
-        match(p.part_name, filters.partName) &&
-        match(p.part_code, filters.partCode) &&
-        match(p.manufacturer, filters.manufacturer) &&
-        match(p.model, filters.model)
-    );
-  }, [parts, filters]);
+  const filtered = parts ?? [];
 
   if (!user) return null;
   const canManage = canManageParts(user.role);
@@ -126,7 +137,7 @@ export default function PartsPage() {
     }
   };
 
-  const hasParts = parts !== null && parts.length > 0;
+  const isEmpty = parts !== null && parts.length === 0;
 
   return (
     <div className="flex flex-col gap-5">
@@ -192,17 +203,11 @@ export default function PartsPage() {
 
       {loadError && !loading && <ErrorMessage message={loadError} onRetry={reload} />}
 
-      {/* Empty inventory (nothing in stock at all). */}
-      {!loading && !loadError && parts !== null && !hasParts && (
+      {/* No results. With an active filter this means the server returned no
+          match; with no filter it means the inventory is empty. */}
+      {!loading && !loadError && isEmpty && (
         <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-gray-500">
-          אין חלפים במלאי. הוסף חלף חדש כדי להתחיל.
-        </div>
-      )}
-
-      {/* Filters matched nothing, though the inventory is not empty. */}
-      {!loading && !loadError && hasParts && filtered.length === 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-gray-500">
-          לא נמצאו חלפים התואמים לסינון.
+          {hasFilters ? 'לא נמצאו חלפים התואמים לסינון.' : 'אין חלפים במלאי. הוסף חלף חדש כדי להתחיל.'}
         </div>
       )}
 

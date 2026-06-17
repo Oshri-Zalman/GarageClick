@@ -3,9 +3,7 @@ import type {
   CustomerDetail,
   CustomerInput,
   CustomerSummary,
-  Paginated,
 } from '../types';
-import { normalizePhone } from '../utils/phone';
 
 // The search type the management screen offers (FR-1: search by phone number or
 // license plate).
@@ -21,36 +19,16 @@ export async function searchCustomersByPlate(licensePlate: string): Promise<Cust
   return data;
 }
 
-// The backend has no phone-search endpoint (only license_plate). We therefore
-// search by phone client-side over GET /api/customers, paging through the list
-// and keeping customers whose normalized phone contains the normalized query.
-// Bounded by the reported `total`, so it terminates even for large datasets.
-const PHONE_SEARCH_PAGE_SIZE = 200; // backend max `limit`.
-
-export async function searchCustomersByPhone(phone: string): Promise<CustomerSummary[]> {
-  const needle = normalizePhone(phone);
-  const matches: CustomerSummary[] = [];
-  let page = 1;
-  let total = Infinity;
-  let seen = 0;
-
-  while (seen < total) {
-    const { data } = await apiClient.get<Paginated<CustomerSummary>>('/customers', {
-      params: { page, limit: PHONE_SEARCH_PAGE_SIZE },
-    });
-    total = data.total;
-    seen += data.items.length;
-    for (const c of data.items) {
-      if (normalizePhone(c.phone_number).includes(needle)) {
-        matches.push(c);
-      }
-    }
-    // Guard against a non-advancing response (empty page) so we never loop forever.
-    if (data.items.length === 0) break;
-    page += 1;
-  }
-
-  return matches;
+// GET /api/customers/search?phone=... — partial phone search handled server-side
+// (Stage 6 backend follow-up). The backend strips dashes/spaces and matches the
+// stored (normalized) phone partially, returning each matching customer with
+// their vehicles. We send the raw query as typed; normalization happens on the
+// server. An empty array means no match (FR-1).
+export async function searchCustomersByPhone(phone: string): Promise<CustomerDetail[]> {
+  const { data } = await apiClient.get<CustomerDetail[]>('/customers/search', {
+    params: { phone },
+  });
+  return data;
 }
 
 // GET /api/customers/{id} — full customer detail including the vehicle list.

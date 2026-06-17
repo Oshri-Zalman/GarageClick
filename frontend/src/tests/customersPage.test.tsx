@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AxiosError } from 'axios';
 import CustomersPage from '../pages/CustomersPage';
-import type { CustomerDetail, CustomerSummary, User } from '../types';
+import type { CustomerDetail, User } from '../types';
 
 vi.mock('../services/customers', () => ({
   searchCustomersByPlate: vi.fn(),
@@ -15,6 +15,12 @@ vi.mock('../services/customers', () => ({
 vi.mock('../services/vehicles', () => ({
   createVehicle: vi.fn(),
   updateVehicle: vi.fn(),
+}));
+// The vehicle form's manufacturer/model fields load the catalog; stub it so the
+// tests stay offline. The static fallback list still covers the makes used here.
+vi.mock('../services/catalog', () => ({
+  getManufacturers: vi.fn().mockResolvedValue(['BMW', 'Toyota', 'Volkswagen']),
+  getModels: vi.fn().mockResolvedValue(['Golf', '320i']),
 }));
 
 import {
@@ -42,8 +48,6 @@ vi.mock('../hooks/useAuth', () => ({
 const MANAGER: User = { id: 1, username: 'uri', full_name: 'אורי', email: null, role: 'Manager', is_active: true };
 const SECRETARY: User = { id: 2, username: 'sara', full_name: 'שרה', email: null, role: 'Secretary', is_active: true };
 
-const SUMMARY: CustomerSummary = { id: 10, full_name: 'דן כהן', phone_number: '0501234567' };
-
 const DETAIL: CustomerDetail = {
   id: 10,
   full_name: 'דן כהן',
@@ -52,6 +56,10 @@ const DETAIL: CustomerDetail = {
     { id: 1, license_plate: '12-345-67', manufacturer: 'Volkswagen', model: 'Golf', year: 2018 },
   ],
 };
+
+// The phone/plate search endpoints both return customers-with-vehicles
+// (CustomerDetail[]); reuse DETAIL as the search hit fixture.
+const SUMMARY: CustomerDetail = DETAIL;
 
 function renderPage(user: User = MANAGER) {
   mockUser = user;

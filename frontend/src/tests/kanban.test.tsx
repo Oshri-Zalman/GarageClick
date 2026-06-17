@@ -7,9 +7,17 @@ import type { KanbanTicket, Role, User } from '../types';
 vi.mock('../services/tickets', () => ({
   listTickets: vi.fn(),
   updateTicketStatus: vi.fn(),
+  archiveTicket: vi.fn(),
 }));
 
-import { listTickets, updateTicketStatus } from '../services/tickets';
+import { AxiosError } from 'axios';
+import { listTickets, updateTicketStatus, archiveTicket } from '../services/tickets';
+
+function axiosError(detail: string): AxiosError {
+  const err = new AxiosError('request failed');
+  err.response = { data: { detail } } as AxiosError['response'];
+  return err;
+}
 
 // ----- Fixtures -----
 
@@ -190,11 +198,68 @@ describe('KanbanBoard — status transitions', () => {
     expect(updateTicketStatus).not.toHaveBeenCalled();
   });
 
-  it('Completed tickets have no action buttons', async () => {
+  it('Completed tickets have no status-advance button (only the close button)', async () => {
     renderBoard(makeUser('Mechanic', MECHANIC_DAVID_ID));
     await screen.findByRole('region', { name: 'הושלם' });
 
-    expect(within(region('הושלם')).queryByRole('button')).not.toBeInTheDocument();
+    // No "התחל טיפול"/"סיים טיפול" advance action on a completed card.
+    expect(within(region('הושלם')).queryByRole('button', { name: 'התחל טיפול' })).not.toBeInTheDocument();
+    expect(within(region('הושלם')).queryByRole('button', { name: 'סיים טיפול' })).not.toBeInTheDocument();
+  });
+});
+
+describe('KanbanBoard — archive (close) completed tickets', () => {
+  it('shows "סגור כרטיס" only on Completed tickets', async () => {
+    renderBoard(makeUser('Manager'));
+    await screen.findByRole('region', { name: 'הושלם' });
+
+    // The completed column's card has the close button.
+    expect(within(region('הושלם')).getByRole('button', { name: 'סגור כרטיס' })).toBeInTheDocument();
+    // Pending / In Progress cards never show it.
+    expect(within(region('ממתין לטיפול')).queryByRole('button', { name: 'סגור כרטיס' })).not.toBeInTheDocument();
+    expect(within(region('בטיפול')).queryByRole('button', { name: 'סגור כרטיס' })).not.toBeInTheDocument();
+  });
+
+  it('clicking "סגור כרטיס" archives the ticket and removes it from the board', async () => {
+    vi.mocked(archiveTicket).mockResolvedValue(
+      makeTicket({ id: 3, status: 'Completed', license_plate: '33-333-33', archived_at: '2026-06-18T10:00:00Z' })
+    );
+    renderBoard(makeUser('Manager'));
+    await screen.findByRole('region', { name: 'הושלם' });
+
+    expect(within(region('הושלם')).getByText('33-333-33')).toBeInTheDocument();
+    await userEvent.click(within(region('הושלם')).getByRole('button', { name: 'סגור כרטיס' }));
+
+    expect(archiveTicket).toHaveBeenCalledWith(3);
+    await waitFor(() =>
+      expect(within(region('הושלם')).queryByText('33-333-33')).not.toBeInTheDocument()
+    );
+    expect(screen.getByText('✓ הכרטיס נסגר ונשמר בהיסטוריה.')).toBeInTheDocument();
+  });
+
+  it('shows a Hebrew error when the backend rejects the close with 409', async () => {
+    vi.mocked(archiveTicket).mockRejectedValueOnce(
+      axiosError('Only a completed ticket can be archived.')
+    );
+    renderBoard(makeUser('Manager'));
+    await screen.findByRole('region', { name: 'הושלם' });
+
+    await userEvent.click(within(region('הושלם')).getByRole('button', { name: 'סגור כרטיס' }));
+
+    expect(await screen.findByText('ניתן לסגור רק כרטיסים שהושלמו.')).toBeInTheDocument();
+    // The ticket stays on the board since it was not archived.
+    expect(within(region('הושלם')).getByText('33-333-33')).toBeInTheDocument();
+  });
+
+  it('a Mechanic can close their own completed ticket', async () => {
+    vi.mocked(archiveTicket).mockResolvedValue(
+      makeTicket({ id: 3, status: 'Completed', license_plate: '33-333-33' })
+    );
+    renderBoard(makeUser('Mechanic', MECHANIC_DAVID_ID));
+    await screen.findByRole('region', { name: 'הושלם' });
+
+    await userEvent.click(within(region('הושלם')).getByRole('button', { name: 'סגור כרטיס' }));
+    expect(archiveTicket).toHaveBeenCalledWith(3);
   });
 });
 

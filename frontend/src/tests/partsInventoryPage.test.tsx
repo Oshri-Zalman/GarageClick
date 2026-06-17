@@ -4,13 +4,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AxiosError } from 'axios';
 import PartsPage from '../pages/PartsPage';
 import App from '../App';
-import type { Part, User } from '../types';
+import type { Paginated, Part, User } from '../types';
 
 vi.mock('../services/parts', () => ({
-  getAllParts: vi.fn(),
+  getInventory: vi.fn(),
   createPart: vi.fn(),
   updatePart: vi.fn(),
   updatePartQuantity: vi.fn(),
+}));
+
+// The part form's manufacturer/model fields load the catalog; stub it so the
+// tests stay offline (the static fallback list still covers the makes used here).
+vi.mock('../services/catalog', () => ({
+  getManufacturers: vi.fn().mockResolvedValue(['BMW', 'Toyota', 'Volkswagen']),
+  getModels: vi.fn().mockResolvedValue(['Golf', 'Corolla', '320i']),
 }));
 
 // The Kanban board (the page a blocked mechanic is redirected to) fetches tickets
@@ -19,9 +26,10 @@ vi.mock('../services/parts', () => ({
 vi.mock('../services/tickets', () => ({
   listTickets: vi.fn().mockResolvedValue([]),
   updateTicketStatus: vi.fn(),
+  archiveTicket: vi.fn(),
 }));
 
-import { getAllParts, createPart, updatePart, updatePartQuantity } from '../services/parts';
+import { getInventory, createPart, updatePart, updatePartQuantity } from '../services/parts';
 
 // useAuth reads the current user; swap it per test via this mutable ref.
 let mockUser: User;
@@ -60,6 +68,11 @@ const PARTS: Part[] = [
   },
 ];
 
+// Wraps a list of parts in the standard paginated envelope the backend returns.
+function envelope(items: Part[]): Paginated<Part> {
+  return { items, page: 1, limit: 200, total: items.length };
+}
+
 function renderPage(user: User = MANAGER) {
   mockUser = user;
   return render(<PartsPage />);
@@ -69,40 +82,42 @@ describe('PartsPage — inventory list', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('renders the inventory table with the loaded parts', async () => {
-    vi.mocked(getAllParts).mockResolvedValue(PARTS);
+    vi.mocked(getInventory).mockResolvedValue(envelope(PARTS));
     renderPage();
 
     expect(await screen.findByRole('table')).toBeInTheDocument();
     expect(screen.getByText('בלמים דיסק קדמי')).toBeInTheDocument();
     expect(screen.getByText('מסנן שמן')).toBeInTheDocument();
     expect(screen.getByText('BRK001')).toBeInTheDocument();
+    // First load fetches with no filters.
+    expect(getInventory).toHaveBeenCalledWith({});
   });
 
   it('shows a Hebrew loading state while the inventory loads', () => {
-    vi.mocked(getAllParts).mockReturnValue(new Promise<Part[]>(() => {}));
+    vi.mocked(getInventory).mockReturnValue(new Promise<Paginated<Part>>(() => {}));
     renderPage();
     expect(screen.getByText('טוען מלאי חלקים...')).toBeInTheDocument();
   });
 
   it('shows an empty state when there are no parts at all', async () => {
-    vi.mocked(getAllParts).mockResolvedValue([]);
+    vi.mocked(getInventory).mockResolvedValue(envelope([]));
     renderPage();
     expect(await screen.findByText('אין חלפים במלאי. הוסף חלף חדש כדי להתחיל.')).toBeInTheDocument();
   });
 
   it('shows a Hebrew error state with retry when loading fails', async () => {
-    vi.mocked(getAllParts).mockRejectedValueOnce(new Error('500'));
+    vi.mocked(getInventory).mockRejectedValueOnce(new Error('500'));
     renderPage();
 
     expect(await screen.findByText('שגיאה בטעינת המלאי. נסה שוב.')).toBeInTheDocument();
 
-    vi.mocked(getAllParts).mockResolvedValueOnce(PARTS);
+    vi.mocked(getInventory).mockResolvedValueOnce(envelope(PARTS));
     await userEvent.click(screen.getByRole('button', { name: 'נסה שוב' }));
     expect(await screen.findByRole('table')).toBeInTheDocument();
   });
 
   it('renders an out-of-stock status when quantity_current is 0', async () => {
-    vi.mocked(getAllParts).mockResolvedValue(PARTS);
+    vi.mocked(getInventory).mockResolvedValue(envelope(PARTS));
     renderPage();
 
     const row = (await screen.findByText('מסנן שמן')).closest('tr') as HTMLElement;
@@ -110,7 +125,7 @@ describe('PartsPage — inventory list', () => {
   });
 
   it('renders an available status when quantity_current is greater than 0', async () => {
-    vi.mocked(getAllParts).mockResolvedValue(PARTS);
+    vi.mocked(getInventory).mockResolvedValue(envelope(PARTS));
     renderPage();
 
     const row = (await screen.findByText('בלמים דיסק קדמי')).closest('tr') as HTMLElement;
@@ -118,60 +133,75 @@ describe('PartsPage — inventory list', () => {
   });
 });
 
-describe('PartsPage — search / filter', () => {
+describe('PartsPage — server-side search / filter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getAllParts).mockResolvedValue(PARTS);
+    vi.mocked(getInventory).mockResolvedValue(envelope(PARTS));
   });
 
-  it('filters by manufacturer', async () => {
+  it('filters by manufacturer using a backend query (exact match)', async () => {
     renderPage();
     await screen.findByRole('table');
+
+    vi.mocked(getInventory).mockResolvedValue(envelope([PARTS[1]]));
     await userEvent.type(screen.getByLabelText('יצרן'), 'BMW');
 
-    expect(screen.getByText('מסנן שמן')).toBeInTheDocument();
+    expect(getInventory).toHaveBeenLastCalledWith({ manufacturer: 'BMW' });
+    expect(await screen.findByText('מסנן שמן')).toBeInTheDocument();
     expect(screen.queryByText('בלמים דיסק קדמי')).not.toBeInTheDocument();
   });
 
-  it('filters by model', async () => {
+  it('filters by model using a backend query', async () => {
     renderPage();
     await screen.findByRole('table');
+
+    vi.mocked(getInventory).mockResolvedValue(envelope([PARTS[0]]));
     await userEvent.type(screen.getByLabelText('דגם'), 'Golf');
 
-    expect(screen.getByText('בלמים דיסק קדמי')).toBeInTheDocument();
+    expect(getInventory).toHaveBeenLastCalledWith({ model: 'Golf' });
+    expect(await screen.findByText('בלמים דיסק קדמי')).toBeInTheDocument();
     expect(screen.queryByText('מסנן שמן')).not.toBeInTheDocument();
   });
 
-  it('filters by part name', async () => {
+  it('filters by part name using a backend query (partial)', async () => {
     renderPage();
     await screen.findByRole('table');
+
+    vi.mocked(getInventory).mockResolvedValue(envelope([PARTS[1]]));
     await userEvent.type(screen.getByLabelText('שם חלף'), 'מסנן');
 
-    expect(screen.getByText('מסנן שמן')).toBeInTheDocument();
+    expect(getInventory).toHaveBeenLastCalledWith({ part_name: 'מסנן' });
+    expect(await screen.findByText('מסנן שמן')).toBeInTheDocument();
     expect(screen.queryByText('בלמים דיסק קדמי')).not.toBeInTheDocument();
   });
 
-  it('filters by part code', async () => {
+  it('filters by part code using a backend query (partial)', async () => {
     renderPage();
     await screen.findByRole('table');
+
+    vi.mocked(getInventory).mockResolvedValue(envelope([PARTS[0]]));
     await userEvent.type(screen.getByLabelText('מק"ט'), 'BRK');
 
-    expect(screen.getByText('בלמים דיסק קדמי')).toBeInTheDocument();
+    expect(getInventory).toHaveBeenLastCalledWith({ part_code: 'BRK' });
+    expect(await screen.findByText('בלמים דיסק קדמי')).toBeInTheDocument();
     expect(screen.queryByText('מסנן שמן')).not.toBeInTheDocument();
   });
 
-  it('shows a no-match state when the filter excludes every part', async () => {
+  it('shows a no-match state when the backend returns nothing for an active filter', async () => {
     renderPage();
     await screen.findByRole('table');
+
+    vi.mocked(getInventory).mockResolvedValue(envelope([]));
     await userEvent.type(screen.getByLabelText('שם חלף'), 'לא קיים');
-    expect(screen.getByText('לא נמצאו חלפים התואמים לסינון.')).toBeInTheDocument();
+
+    expect(await screen.findByText('לא נמצאו חלפים התואמים לסינון.')).toBeInTheDocument();
   });
 });
 
 describe('PartsPage — create part', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getAllParts).mockResolvedValue(PARTS);
+    vi.mocked(getInventory).mockResolvedValue(envelope(PARTS));
   });
 
   it('validates the create-part form before submit', async () => {
@@ -242,12 +272,30 @@ describe('PartsPage — create part', () => {
     });
     expect(await screen.findByText('✓ החלף נוצר בהצלחה.')).toBeInTheDocument();
   });
+
+  it('maps a duplicate part_code backend error (409) to Hebrew', async () => {
+    vi.mocked(createPart).mockRejectedValueOnce(axiosError('part_code already exists.'));
+    renderPage();
+    await screen.findByRole('table');
+    await userEvent.click(screen.getByRole('button', { name: '➕ חלף חדש' }));
+    const form = screen.getByRole('form', { name: 'חלף חדש' });
+
+    await userEvent.type(within(form).getByLabelText('שם חלף'), 'רפידות בלם');
+    await userEvent.type(within(form).getByLabelText('מק"ט'), 'BRK001');
+    await userEvent.selectOptions(within(form).getByLabelText('יצרן'), 'Toyota');
+    await userEvent.type(within(form).getByLabelText('דגם'), 'Corolla');
+    await userEvent.type(within(form).getByLabelText('שנת התחלה'), '2016');
+    await userEvent.type(within(form).getByLabelText('כמות במלאי'), '5');
+    await userEvent.click(within(form).getByRole('button', { name: 'צור חלף' }));
+
+    expect(await within(form).findByText('מק״ט כבר קיים במערכת.')).toBeInTheDocument();
+  });
 });
 
 describe('PartsPage — edit part', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getAllParts).mockResolvedValue(PARTS);
+    vi.mocked(getInventory).mockResolvedValue(envelope(PARTS));
   });
 
   async function openEditFirstPart() {
@@ -293,12 +341,21 @@ describe('PartsPage — edit part', () => {
     await userEvent.click(within(form).getByRole('button', { name: 'שמור שינויים' }));
     expect(await within(form).findByText('החלף לא נמצא במערכת.')).toBeInTheDocument();
   });
+
+  it('maps a duplicate part_code error on update to Hebrew', async () => {
+    vi.mocked(updatePart).mockRejectedValueOnce(axiosError('part_code already exists.'));
+    const form = await openEditFirstPart();
+    await userEvent.clear(within(form).getByLabelText('מק"ט'));
+    await userEvent.type(within(form).getByLabelText('מק"ט'), 'OIL002');
+    await userEvent.click(within(form).getByRole('button', { name: 'שמור שינויים' }));
+    expect(await within(form).findByText('מק״ט כבר קיים במערכת.')).toBeInTheDocument();
+  });
 });
 
 describe('PartsPage — quantity update', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getAllParts).mockResolvedValue(PARTS);
+    vi.mocked(getInventory).mockResolvedValue(envelope(PARTS));
   });
 
   it('updates a part quantity successfully', async () => {
@@ -338,7 +395,7 @@ describe('PartsPage — quantity update', () => {
 describe('PartsPage — role access', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getAllParts).mockResolvedValue(PARTS);
+    vi.mocked(getInventory).mockResolvedValue(envelope(PARTS));
     sessionStorage.clear();
   });
 

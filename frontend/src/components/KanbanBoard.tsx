@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { KanbanTicket, TicketStatus, User } from '../types';
 import { NEXT_STATUS, STATUS_LABELS, STATUS_ORDER } from '../config/ticketStatus';
-import { listTickets, updateTicketStatus } from '../services/tickets';
+import { archiveTicket, listTickets, updateTicketStatus } from '../services/tickets';
+import { apiErrorMessage } from '../utils/apiErrors';
 import KanbanColumn from './KanbanColumn';
 import ConfirmDialog from './ConfirmDialog';
 import LoadingSpinner from './LoadingSpinner';
@@ -20,6 +21,8 @@ export default function KanbanBoard({ user }: Props) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [archivingId, setArchivingId] = useState<number | null>(null);
+  const [archiveSuccess, setArchiveSuccess] = useState<string | null>(null);
   // The In Progress ticket awaiting an explicit "סיים טיפול" confirmation.
   const [confirming, setConfirming] = useState<KanbanTicket | null>(null);
 
@@ -100,6 +103,24 @@ export default function KanbanBoard({ user }: Props) {
     advance(ticket, true);
   }, [confirming, advance]);
 
+  // Close/archive a Completed ticket: it leaves the active board but stays in the
+  // DB and history (this is not a delete). On success the ticket is removed from
+  // the board; a 409 (not Completed) surfaces a clear Hebrew message.
+  const onArchive = useCallback(async (ticket: KanbanTicket) => {
+    setArchivingId(ticket.id);
+    setActionError(null);
+    setArchiveSuccess(null);
+    try {
+      await archiveTicket(ticket.id);
+      setTickets((prev) => prev.filter((t) => t.id !== ticket.id));
+      setArchiveSuccess('הכרטיס נסגר ונשמר בהיסטוריה.');
+    } catch (err) {
+      setActionError(apiErrorMessage(err, 'שגיאה בסגירת הכרטיס. נסה שוב.'));
+    } finally {
+      setArchivingId(null);
+    }
+  }, []);
+
   if (loading) return <LoadingSpinner message="טוען קריאות..." />;
   if (error) return <ErrorMessage message={error} onRetry={reload} />;
 
@@ -133,6 +154,15 @@ export default function KanbanBoard({ user }: Props) {
         </div>
       )}
 
+      {archiveSuccess && (
+        <div
+          role="status"
+          className="mb-4 rounded-xl border border-green-200 bg-green-50 p-3 text-sm font-semibold text-green-800"
+        >
+          ✓ {archiveSuccess}
+        </div>
+      )}
+
       {visibleTickets.length === 0 ? (
         <p className="py-12 text-center text-gray-500">אין קריאות להצגה</p>
       ) : (
@@ -148,7 +178,9 @@ export default function KanbanBoard({ user }: Props) {
               tickets={visibleTickets.filter((t) => t.status === status)}
               canUpdate={canUpdate}
               updatingId={updatingId}
+              archivingId={archivingId}
               onAdvance={onAdvance}
+              onArchive={onArchive}
             />
           ))}
         </div>

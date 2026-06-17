@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import type { Part, PartInput } from '../types';
-import { MANUFACTURERS } from '../utils/manufacturers';
 import { validateYear } from '../utils/year';
+import ManufacturerModelFields from './ManufacturerModelFields';
 
 interface Props {
   // When provided, the form edits this part; otherwise it creates a new one.
@@ -103,30 +103,16 @@ export default function PartForm({ part, submitting, error, onSubmit, onCancel }
             className={fieldClass}
           />
         </Field>
-        <Field id="part-manufacturer" label="יצרן" error={errors.manufacturer}>
-          <select
-            id="part-manufacturer"
-            value={manufacturer}
-            onChange={(e) => setManufacturer(e.target.value)}
-            className={fieldClass}
-          >
-            <option value="">בחר יצרן...</option>
-            {MANUFACTURERS.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field id="part-model" label="דגם" error={errors.model}>
-          <input
-            id="part-model"
-            type="text"
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            className={fieldClass}
-          />
-        </Field>
+        <ManufacturerModelFields
+          idPrefix="part"
+          fieldClass={fieldClass}
+          manufacturer={manufacturer}
+          model={model}
+          onManufacturerChange={setManufacturer}
+          onModelChange={setModel}
+          manufacturerError={errors.manufacturer}
+          modelError={errors.model}
+        />
         <Field id="part-year-start" label="שנת התחלה" error={errors.year_start}>
           <input
             id="part-year-start"
