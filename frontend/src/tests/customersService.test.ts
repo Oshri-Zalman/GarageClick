@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { CustomerDetail, CustomerSummary, Paginated } from '../types';
+import type { CustomerDetail, CustomerSummary } from '../types';
 
 vi.mock('../services/apiClient', () => ({
   default: { get: vi.fn(), post: vi.fn(), put: vi.fn() },
@@ -27,10 +27,6 @@ const DETAIL: CustomerDetail = {
   ],
 };
 
-function page(items: CustomerSummary[], total: number, pageNum = 1): { data: Paginated<CustomerSummary> } {
-  return { data: { items, page: pageNum, limit: 200, total } };
-}
-
 describe('customers service', () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -43,41 +39,24 @@ describe('customers service', () => {
     expect(result).toEqual([DETAIL]);
   });
 
-  it('searches by phone client-side over the /customers list (normalized contains)', async () => {
-    const a: CustomerSummary = { id: 1, full_name: 'דן', phone_number: '050-123-4567' };
-    const b: CustomerSummary = { id: 2, full_name: 'רות', phone_number: '0529999999' };
-    mockedGet.mockResolvedValueOnce(page([a, b], 2));
+  it('searches by phone via the server-side /customers/search?phone= endpoint', async () => {
+    mockedGet.mockResolvedValueOnce({ data: [DETAIL] });
 
-    const result = await searchCustomersByPhone('123-4567');
+    const result = await searchCustomersByPhone('050-123-4567');
 
-    expect(mockedGet).toHaveBeenCalledWith('/customers', {
-      params: { page: 1, limit: 200 },
+    // The raw query is sent as typed; the backend strips separators and matches
+    // partially. We must NOT page over /api/customers anymore.
+    expect(mockedGet).toHaveBeenCalledWith('/customers/search', {
+      params: { phone: '050-123-4567' },
     });
-    expect(result).toEqual([a]);
-  });
-
-  it('pages through the whole customer list when searching by phone', async () => {
-    const first: CustomerSummary[] = Array.from({ length: 200 }, (_, i) => ({
-      id: i + 1,
-      full_name: `c${i}`,
-      phone_number: '0500000000',
-    }));
-    const match: CustomerSummary = { id: 201, full_name: 'מצוין', phone_number: '0507654321' };
-    mockedGet.mockResolvedValueOnce(page(first, 201, 1));
-    mockedGet.mockResolvedValueOnce(page([match], 201, 2));
-
-    const result = await searchCustomersByPhone('7654321');
-
-    expect(mockedGet).toHaveBeenCalledTimes(2);
-    expect(mockedGet).toHaveBeenLastCalledWith('/customers', {
-      params: { page: 2, limit: 200 },
-    });
-    expect(result).toEqual([match]);
+    expect(mockedGet).not.toHaveBeenCalledWith('/customers', expect.anything());
+    expect(result).toEqual([DETAIL]);
   });
 
   it('returns an empty array when no phone matches', async () => {
-    mockedGet.mockResolvedValueOnce(page([{ id: 1, full_name: 'דן', phone_number: '0500000000' }], 1));
+    mockedGet.mockResolvedValueOnce({ data: [] });
     await expect(searchCustomersByPhone('999')).resolves.toEqual([]);
+    expect(mockedGet).toHaveBeenCalledWith('/customers/search', { params: { phone: '999' } });
   });
 
   it('fetches a customer detail by id', async () => {

@@ -78,8 +78,35 @@ describe('inventory services', () => {
   it('getInventory requests one page of the inventory envelope', async () => {
     const envelope = { items: [PART], page: 1, limit: 200, total: 1 };
     mockedGet.mockResolvedValueOnce({ data: envelope });
-    await expect(getInventory(1, 200)).resolves.toEqual(envelope);
+    await expect(getInventory({ page: 1, limit: 200 })).resolves.toEqual(envelope);
     expect(mockedGet).toHaveBeenCalledWith('/parts/inventory', { params: { page: 1, limit: 200 } });
+  });
+
+  it('getInventory defaults to page 1 / limit 200 when called with no query', async () => {
+    mockedGet.mockResolvedValueOnce({ data: { items: [], page: 1, limit: 200, total: 0 } });
+    await getInventory();
+    expect(mockedGet).toHaveBeenCalledWith('/parts/inventory', { params: { page: 1, limit: 200 } });
+  });
+
+  it('getInventory forwards non-empty filters as backend query params', async () => {
+    mockedGet.mockResolvedValueOnce({ data: { items: [], page: 1, limit: 200, total: 0 } });
+    await getInventory({
+      manufacturer: 'BMW',
+      model: '320i',
+      part_name: 'מסנן',
+      part_code: 'OIL',
+    });
+    expect(mockedGet).toHaveBeenCalledWith('/parts/inventory', {
+      params: { page: 1, limit: 200, manufacturer: 'BMW', model: '320i', part_name: 'מסנן', part_code: 'OIL' },
+    });
+  });
+
+  it('getInventory omits blank filter fields', async () => {
+    mockedGet.mockResolvedValueOnce({ data: { items: [], page: 1, limit: 200, total: 0 } });
+    await getInventory({ manufacturer: '', model: 'Golf', part_name: '', part_code: '' });
+    expect(mockedGet).toHaveBeenCalledWith('/parts/inventory', {
+      params: { page: 1, limit: 200, model: 'Golf' },
+    });
   });
 
   it('getAllParts pages through the inventory until total is reached', async () => {

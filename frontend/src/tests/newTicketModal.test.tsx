@@ -11,8 +11,13 @@ vi.mock('../services/tickets', () => ({
   listTickets: vi.fn().mockResolvedValue([]),
   updateTicketStatus: vi.fn(),
   createTicket: vi.fn(),
+  archiveTicket: vi.fn(),
 }));
 vi.mock('../services/parts', () => ({ getCompatibleParts: vi.fn() }));
+vi.mock('../services/catalog', () => ({
+  getManufacturers: vi.fn().mockResolvedValue(['BMW', 'Toyota', 'Volkswagen']),
+  getModels: vi.fn().mockResolvedValue(['Golf', '320i']),
+}));
 
 import { searchVehicle } from '../services/vehicles';
 import { listMechanics } from '../services/mechanics';

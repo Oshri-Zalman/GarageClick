@@ -28,6 +28,16 @@ describe('apiErrorMessage', () => {
     expect(apiErrorMessage(err, FALLBACK)).toBe('הלקוח אינו קיים במערכת.');
   });
 
+  it('maps a duplicate part_code error (409) to Hebrew', () => {
+    const err = axiosErrorWithDetail('part_code already exists.');
+    expect(apiErrorMessage(err, FALLBACK)).toBe('מק״ט כבר קיים במערכת.');
+  });
+
+  it('maps the archive-not-completed error (409) to Hebrew', () => {
+    const err = axiosErrorWithDetail('Only a completed ticket can be archived.');
+    expect(apiErrorMessage(err, FALLBACK)).toBe('ניתן לסגור רק כרטיסים שהושלמו.');
+  });
+
   it('maps not-found errors to Hebrew', () => {
     expect(apiErrorMessage(axiosErrorWithDetail('Customer not found.'), FALLBACK)).toBe(
       'הלקוח לא נמצא במערכת.'

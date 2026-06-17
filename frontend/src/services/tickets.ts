@@ -40,3 +40,13 @@ export async function updateTicketStatus(
   });
   return data;
 }
+
+// POST /api/tickets/{id}/archive — close/archive a COMPLETED ticket (Stage 8
+// backend follow-up). The ticket is kept in the DB and history (it gains an
+// `archived_at` timestamp) but leaves the active board. The backend returns 409
+// if the ticket is not Completed, and enforces the same permissions as a status
+// change (Manager/Secretary, or the assigned Mechanic).
+export async function archiveTicket(id: number): Promise<KanbanTicket> {
+  const { data } = await apiClient.post<KanbanTicket>(`/tickets/${id}/archive`);
+  return data;
+}

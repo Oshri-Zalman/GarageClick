@@ -1,4 +1,5 @@
 import type { Part } from '../types';
+import { isUniversalPart } from '../utils/parts';
 import PartStatusBadge from './PartStatusBadge';
 
 interface Props {
@@ -28,13 +29,23 @@ export default function PartsInventoryTable({ parts, canManage, onEdit, onUpdate
           </tr>
         </thead>
         <tbody>
-          {parts.map((part) => (
+          {parts.map((part) => {
+            const universal = isUniversalPart(part);
+            return (
             <tr key={part.id} className="border-b border-gray-100 last:border-0 hover:bg-amber-50/50">
               <td className="px-3 py-2 font-semibold text-gray-800">{part.part_name}</td>
               <td className="px-3 py-2 text-gray-600">{part.part_code}</td>
-              <td className="px-3 py-2 text-gray-600">{part.manufacturer ?? '—'}</td>
-              <td className="px-3 py-2 text-gray-600">{part.model ?? '—'}</td>
-              <td className="px-3 py-2 text-gray-600">{part.year_start ?? '—'}</td>
+              {universal ? (
+                <td className="px-3 py-2 font-semibold text-amber-700" colSpan={3}>
+                  כל הרכבים
+                </td>
+              ) : (
+                <>
+                  <td className="px-3 py-2 text-gray-600">{part.manufacturer ?? '—'}</td>
+                  <td className="px-3 py-2 text-gray-600">{part.model ?? '—'}</td>
+                  <td className="px-3 py-2 text-gray-600">{part.year_start ?? '—'}</td>
+                </>
+              )}
               <td className="px-3 py-2 font-semibold text-gray-800">{part.quantity_current}</td>
               <td className="px-3 py-2">
                 <PartStatusBadge quantity={part.quantity_current} />
@@ -60,7 +71,8 @@ export default function PartsInventoryTable({ parts, canManage, onEdit, onUpdate
                 </td>
               )}
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

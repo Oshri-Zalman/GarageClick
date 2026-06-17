@@ -8,7 +8,9 @@ interface Props {
   tickets: KanbanTicket[];
   canUpdate: (ticket: KanbanTicket) => boolean;
   updatingId: number | null;
+  archivingId: number | null;
   onAdvance: (ticket: KanbanTicket) => void;
+  onArchive: (ticket: KanbanTicket) => void;
 }
 
 export default function KanbanColumn({
@@ -16,7 +18,9 @@ export default function KanbanColumn({
   tickets,
   canUpdate,
   updatingId,
+  archivingId,
   onAdvance,
+  onArchive,
 }: Props) {
   return (
     <section
@@ -38,7 +42,9 @@ export default function KanbanColumn({
               ticket={ticket}
               canUpdate={canUpdate(ticket)}
               updating={updatingId === ticket.id}
+              archiving={archivingId === ticket.id}
               onAdvance={() => onAdvance(ticket)}
+              onArchive={() => onArchive(ticket)}
             />
           ))
         )}

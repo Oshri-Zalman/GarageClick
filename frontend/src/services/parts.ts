@@ -19,20 +19,35 @@ export async function getCompatibleParts(
 // Backend `limit` cap for list endpoints (see pagination.py).
 const INVENTORY_PAGE_SIZE = 200;
 
-// GET /api/parts/inventory — one page of the parts inventory (STAFF only on the
-// backend: Manager/Secretary). Returns the standard paginated envelope.
-export async function getInventory(
-  page = 1,
-  limit = INVENTORY_PAGE_SIZE
-): Promise<Paginated<Part>> {
-  const { data } = await apiClient.get<Paginated<Part>>('/parts/inventory', {
-    params: { page, limit },
-  });
+// Server-side inventory filters (Stage 7 backend follow-up). manufacturer/model
+// are matched exactly; part_name/part_code are partial (LIKE). Blank fields are
+// omitted from the request.
+export interface InventoryQuery {
+  manufacturer?: string;
+  model?: string;
+  part_name?: string;
+  part_code?: string;
+  page?: number;
+  limit?: number;
+}
+
+// GET /api/parts/inventory — one filtered + paginated page of the parts inventory
+// (STAFF only on the backend: Manager/Secretary). Filtering is done server-side,
+// so the management screen no longer pulls the whole inventory to filter locally.
+// Returns the standard paginated envelope.
+export async function getInventory(query: InventoryQuery = {}): Promise<Paginated<Part>> {
+  const { page = 1, limit = INVENTORY_PAGE_SIZE, manufacturer, model, part_name, part_code } = query;
+  const params: Record<string, string | number> = { page, limit };
+  if (manufacturer) params.manufacturer = manufacturer;
+  if (model) params.model = model;
+  if (part_name) params.part_name = part_name;
+  if (part_code) params.part_code = part_code;
+
+  const { data } = await apiClient.get<Paginated<Part>>('/parts/inventory', { params });
   return data;
 }
 
-// Fetches the entire inventory by paging through GET /api/parts/inventory. The
-// management screen filters/searches client-side, so it needs the full set.
+// Fetches the entire inventory by paging through GET /api/parts/inventory.
 // Bounded by the reported `total`, so it terminates even for large datasets.
 export async function getAllParts(): Promise<Part[]> {
   const all: Part[] = [];
@@ -40,7 +55,7 @@ export async function getAllParts(): Promise<Part[]> {
   let total = Infinity;
 
   while (all.length < total) {
-    const data = await getInventory(page, INVENTORY_PAGE_SIZE);
+    const data = await getInventory({ page, limit: INVENTORY_PAGE_SIZE });
     total = data.total;
     all.push(...data.items);
     // Guard against a non-advancing response (empty page) so we never loop forever.

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import type { CreateTicketPayload, Mechanic, User } from '../types';
 import TicketDetailsFields, { type TicketDetailsField } from './TicketDetailsFields';
 import PartsSelection from './PartsSelection';
+import ManufacturerModelFields from './ManufacturerModelFields';
 import {
   buildPartsPayload,
   emptyPartsSelection,
@@ -14,20 +15,6 @@ import {
   validateDetails,
   type DetailsErrors,
 } from './ticketDetails';
-
-// Common manufacturers — "selection from a list, not free text" (NFR-4).
-const MANUFACTURERS = [
-  'Volkswagen',
-  'BMW',
-  'Toyota',
-  'Hyundai',
-  'Kia',
-  'Mazda',
-  'Mercedes-Benz',
-  'Skoda',
-  'Audi',
-  'Ford',
-];
 
 interface Props {
   user: User;
@@ -177,30 +164,16 @@ export default function NewCustomerVehicleTicketForm({
           <Field id="vehicle-plate" label="מספר רכב">
             <input id="vehicle-plate" type="text" value={licensePlate} readOnly className={`${fieldClass} bg-gray-100`} />
           </Field>
-          <Field id="vehicle-manufacturer" label="יצרן" error={vehicleErrors.manufacturer}>
-            <select
-              id="vehicle-manufacturer"
-              value={manufacturer}
-              onChange={(e) => onVehicleFieldChange(setManufacturer)(e.target.value)}
-              className={fieldClass}
-            >
-              <option value="">בחר יצרן...</option>
-              {MANUFACTURERS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field id="vehicle-model" label="דגם" error={vehicleErrors.model}>
-            <input
-              id="vehicle-model"
-              type="text"
-              value={model}
-              onChange={(e) => onVehicleFieldChange(setModel)(e.target.value)}
-              className={fieldClass}
-            />
-          </Field>
+          <ManufacturerModelFields
+            idPrefix="new-vehicle"
+            fieldClass={fieldClass}
+            manufacturer={manufacturer}
+            model={model}
+            onManufacturerChange={onVehicleFieldChange(setManufacturer)}
+            onModelChange={onVehicleFieldChange(setModel)}
+            manufacturerError={vehicleErrors.manufacturer}
+            modelError={vehicleErrors.model}
+          />
           <Field id="vehicle-year" label="שנה" error={vehicleErrors.year}>
             <input
               id="vehicle-year"

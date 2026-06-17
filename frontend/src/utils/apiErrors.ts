@@ -9,11 +9,15 @@ import { AxiosError } from 'axios';
 // (see backend/app/routers/customers.py and vehicles.py).
 const KNOWN_ERRORS: { match: string; hebrew: string }[] = [
   { match: 'license_plate already exists', hebrew: 'מספר רכב זה כבר קיים במערכת.' },
+  { match: 'part_code already exists', hebrew: 'מק״ט כבר קיים במערכת.' },
   { match: 'Provide at least one field', hebrew: 'יש לעדכן לפחות שדה אחד.' },
   { match: 'customer_id does not exist', hebrew: 'הלקוח אינו קיים במערכת.' },
   { match: 'Customer not found', hebrew: 'הלקוח לא נמצא במערכת.' },
   { match: 'Vehicle not found', hebrew: 'הרכב לא נמצא במערכת.' },
   { match: 'Part not found', hebrew: 'החלף לא נמצא במערכת.' },
+  // Ticket archiving (Stage 8): only Completed tickets can be closed/archived.
+  { match: 'Only a completed ticket can be archived', hebrew: 'ניתן לסגור רק כרטיסים שהושלמו.' },
+  { match: 'Ticket is already archived', hebrew: 'הכרטיס כבר נסגר.' },
 ];
 
 // Extracts the backend `detail` string from an Axios error, if present. FastAPI

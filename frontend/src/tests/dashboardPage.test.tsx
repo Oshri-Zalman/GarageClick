@@ -5,7 +5,6 @@ import DashboardPage from '../pages/DashboardPage';
 import App from '../App';
 import type {
   EmployeeMonitorRow,
-  KanbanTicket,
   PerformanceReport,
   TicketsByDayRow,
   TicketsSummary,
@@ -22,10 +21,16 @@ vi.mock('../services/admin', () => ({
 vi.mock('../services/tickets', () => ({
   listTickets: vi.fn().mockResolvedValue([]),
   updateTicketStatus: vi.fn(),
+  archiveTicket: vi.fn(),
+}));
+
+vi.mock('../services/staff', () => ({
+  getStaffTicketsSummary: vi.fn(),
 }));
 
 import { getTicketsSummary, getEmployees, getTicketsByDay, getPerformance } from '../services/admin';
 import { listTickets } from '../services/tickets';
+import { getStaffTicketsSummary } from '../services/staff';
 
 // useAuth reads the current user; swap it per test via this mutable ref.
 let mockUser: User | null;
@@ -60,28 +65,6 @@ const PERFORMANCE: PerformanceReport = {
   total_work_hours: 40,
   avg_time_per_ticket_minutes: 200,
 };
-
-function ticket(id: number, status: KanbanTicket['status']): KanbanTicket {
-  return {
-    id,
-    ticket_number: `T-${id}`,
-    vehicle_id: id,
-    created_by_id: 1,
-    assigned_mechanic_id: 5,
-    description: 'תקלה',
-    status,
-    created_at: '2026-06-02T08:00:00',
-    started_at: null,
-    completed_at: null,
-    license_plate: '123-45-678',
-    manufacturer: 'VW',
-    model: 'Golf',
-    year: 2018,
-    customer_name: 'דן',
-    customer_phone: '0500000000',
-    mechanic_name: 'דוד',
-  };
-}
 
 function renderDashboard(user: User | null) {
   mockUser = user;
@@ -201,16 +184,15 @@ describe('DashboardPage — Manager', () => {
 });
 
 describe('DashboardPage — Secretary', () => {
-  it('renders the general status summary and operational overview', async () => {
-    vi.mocked(listTickets).mockResolvedValue([
-      ticket(1, 'Pending'),
-      ticket(2, 'In Progress'),
-      ticket(3, 'In Progress'),
-      ticket(4, 'Completed'),
-      ticket(5, 'Completed'),
-      ticket(6, 'Completed'),
-      ticket(7, 'Completed'),
-    ]);
+  const STAFF_SUMMARY: TicketsSummary = {
+    total_pending: 1,
+    total_in_progress: 2,
+    total_completed: 4,
+    avg_completion_minutes: 180,
+  };
+
+  it('renders accurate status totals from the staff summary endpoint', async () => {
+    vi.mocked(getStaffTicketsSummary).mockResolvedValue(STAFF_SUMMARY);
     renderDashboard(SECRETARY);
 
     const region = await screen.findByRole('region', { name: 'סיכום סטטוס קריאות' });
@@ -218,10 +200,14 @@ describe('DashboardPage — Secretary', () => {
     expect(within(region).getByText('2')).toBeInTheDocument(); // in progress
     expect(within(region).getByText('4')).toBeInTheDocument(); // completed
     expect(screen.getByRole('region', { name: 'סקירה תפעולית' })).toBeInTheDocument();
+
+    // Totals come from GET /api/staff/tickets/summary, not the paginated ticket list.
+    expect(getStaffTicketsSummary).toHaveBeenCalledTimes(1);
+    expect(listTickets).not.toHaveBeenCalled();
   });
 
   it('does not show manager-only employee monitoring or performance reports', async () => {
-    vi.mocked(listTickets).mockResolvedValue([ticket(1, 'Pending')]);
+    vi.mocked(getStaffTicketsSummary).mockResolvedValue(STAFF_SUMMARY);
     renderDashboard(SECRETARY);
     await screen.findByRole('region', { name: 'סיכום סטטוס קריאות' });
 
@@ -235,31 +221,36 @@ describe('DashboardPage — Secretary', () => {
   });
 
   it('does not show the manager-only average completion time card', async () => {
-    vi.mocked(listTickets).mockResolvedValue([ticket(1, 'Pending')]);
+    vi.mocked(getStaffTicketsSummary).mockResolvedValue(STAFF_SUMMARY);
     renderDashboard(SECRETARY);
     const region = await screen.findByRole('region', { name: 'סיכום סטטוס קריאות' });
     expect(within(region).queryByText('זמן טיפול ממוצע')).not.toBeInTheDocument();
   });
 
   it('shows an empty operational state when there are no tickets', async () => {
-    vi.mocked(listTickets).mockResolvedValue([]);
+    vi.mocked(getStaffTicketsSummary).mockResolvedValue({
+      total_pending: 0,
+      total_in_progress: 0,
+      total_completed: 0,
+      avg_completion_minutes: null,
+    });
     renderDashboard(SECRETARY);
     expect(await screen.findByText('אין כרגע קריאות במערכת.')).toBeInTheDocument();
   });
 
-  it('shows a Hebrew loading state while tickets load', () => {
-    vi.mocked(listTickets).mockReturnValue(new Promise<KanbanTicket[]>(() => {}));
+  it('shows a Hebrew loading state while the summary loads', () => {
+    vi.mocked(getStaffTicketsSummary).mockReturnValue(new Promise<TicketsSummary>(() => {}));
     renderDashboard(SECRETARY);
     expect(screen.getByText('טוען לוח בקרה...')).toBeInTheDocument();
   });
 
-  it('shows a Hebrew error state with retry when tickets fail to load', async () => {
-    vi.mocked(listTickets).mockRejectedValueOnce(new Error('500'));
+  it('shows a Hebrew error state with retry when the summary fails to load', async () => {
+    vi.mocked(getStaffTicketsSummary).mockRejectedValueOnce(new Error('500'));
     renderDashboard(SECRETARY);
 
-    expect(await screen.findByText('שגיאה בטעינת הקריאות. נסה שוב.')).toBeInTheDocument();
+    expect(await screen.findByText('שגיאה בטעינת לוח הבקרה. נסה שוב.')).toBeInTheDocument();
 
-    vi.mocked(listTickets).mockResolvedValueOnce([ticket(1, 'Pending')]);
+    vi.mocked(getStaffTicketsSummary).mockResolvedValueOnce(STAFF_SUMMARY);
     await userEvent.click(screen.getByRole('button', { name: 'נסה שוב' }));
     expect(await screen.findByRole('region', { name: 'סיכום סטטוס קריאות' })).toBeInTheDocument();
   });
