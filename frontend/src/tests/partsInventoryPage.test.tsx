@@ -68,6 +68,17 @@ const PARTS: Part[] = [
   },
 ];
 
+// A universal / multi-vehicle part — no make/model/year (all null).
+const UNIVERSAL_PART: Part = {
+  id: 9,
+  part_name: 'נורת חזית אוניברסלית',
+  part_code: 'UNI009',
+  manufacturer: null,
+  model: null,
+  year_start: null,
+  quantity_current: 7,
+};
+
 // Wraps a list of parts in the standard paginated envelope the backend returns.
 function envelope(items: Part[]): Paginated<Part> {
   return { items, page: 1, limit: 200, total: items.length };
@@ -289,6 +300,101 @@ describe('PartsPage — create part', () => {
     await userEvent.click(within(form).getByRole('button', { name: 'צור חלף' }));
 
     expect(await within(form).findByText('מק״ט כבר קיים במערכת.')).toBeInTheDocument();
+  });
+});
+
+describe('PartsPage — universal parts', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getInventory).mockResolvedValue(envelope(PARTS));
+  });
+
+  it('shows the "מתאים לכל הרכבים" checkbox on the create form', async () => {
+    renderPage();
+    await screen.findByRole('table');
+    await userEvent.click(screen.getByRole('button', { name: '➕ חלף חדש' }));
+    const form = screen.getByRole('form', { name: 'חלף חדש' });
+
+    expect(within(form).getByRole('checkbox', { name: 'מתאים לכל הרכבים' })).not.toBeChecked();
+    // Make/model/year fields are visible while it's a vehicle-specific part.
+    expect(within(form).getByLabelText('יצרן')).toBeInTheDocument();
+  });
+
+  it('bypasses make/model/year validation and sends nulls for a universal part', async () => {
+    vi.mocked(createPart).mockResolvedValue({ ...UNIVERSAL_PART });
+    renderPage();
+    await screen.findByRole('table');
+    await userEvent.click(screen.getByRole('button', { name: '➕ חלף חדש' }));
+    const form = screen.getByRole('form', { name: 'חלף חדש' });
+
+    // Mark it universal — the make/model/year fields disappear.
+    await userEvent.click(within(form).getByRole('checkbox', { name: 'מתאים לכל הרכבים' }));
+    expect(within(form).queryByLabelText('יצרן')).not.toBeInTheDocument();
+    expect(within(form).queryByLabelText('דגם')).not.toBeInTheDocument();
+    expect(within(form).queryByLabelText('שנת התחלה')).not.toBeInTheDocument();
+
+    await userEvent.type(within(form).getByLabelText('שם חלף'), 'נורת חזית אוניברסלית');
+    await userEvent.type(within(form).getByLabelText('מק"ט'), 'UNI009');
+    await userEvent.type(within(form).getByLabelText('כמות במלאי'), '7');
+    await userEvent.click(within(form).getByRole('button', { name: 'צור חלף' }));
+
+    expect(createPart).toHaveBeenCalledWith({
+      part_name: 'נורת חזית אוניברסלית',
+      part_code: 'UNI009',
+      manufacturer: null,
+      model: null,
+      year_start: null,
+      quantity_current: 7,
+    });
+    expect(await screen.findByText('✓ החלף נוצר בהצלחה.')).toBeInTheDocument();
+  });
+
+  it('still requires make/model/year for a regular (non-universal) part', async () => {
+    renderPage();
+    await screen.findByRole('table');
+    await userEvent.click(screen.getByRole('button', { name: '➕ חלף חדש' }));
+    const form = screen.getByRole('form', { name: 'חלף חדש' });
+
+    await userEvent.type(within(form).getByLabelText('שם חלף'), 'רפידות');
+    await userEvent.type(within(form).getByLabelText('מק"ט'), 'PAD003');
+    await userEvent.type(within(form).getByLabelText('כמות במלאי'), '5');
+    await userEvent.click(within(form).getByRole('button', { name: 'צור חלף' }));
+
+    expect(await within(form).findByText('יש לבחור יצרן')).toBeInTheDocument();
+    expect(within(form).getByText('יש להזין דגם')).toBeInTheDocument();
+    expect(within(form).getByText('יש להזין שנה')).toBeInTheDocument();
+    expect(createPart).not.toHaveBeenCalled();
+  });
+
+  it('pre-selects the checkbox when editing an existing universal part', async () => {
+    vi.mocked(getInventory).mockResolvedValue(envelope([UNIVERSAL_PART]));
+    renderPage();
+    await screen.findByRole('table');
+    await userEvent.click(screen.getByRole('button', { name: '✏️ ערוך' }));
+    const form = screen.getByRole('form', { name: 'עריכת חלף' });
+
+    expect(within(form).getByRole('checkbox', { name: 'מתאים לכל הרכבים' })).toBeChecked();
+    // The make/model/year fields are hidden for a universal part.
+    expect(within(form).queryByLabelText('יצרן')).not.toBeInTheDocument();
+  });
+
+  it('leaves the checkbox unchecked when editing a regular part', async () => {
+    renderPage();
+    await screen.findByRole('table');
+    await userEvent.click(screen.getAllByRole('button', { name: '✏️ ערוך' })[0]);
+    const form = screen.getByRole('form', { name: 'עריכת חלף' });
+
+    expect(within(form).getByRole('checkbox', { name: 'מתאים לכל הרכבים' })).not.toBeChecked();
+    expect(within(form).getByLabelText('יצרן')).toHaveValue('Volkswagen');
+  });
+
+  it('shows "כל הרכבים" in the inventory table for a universal part', async () => {
+    vi.mocked(getInventory).mockResolvedValue(envelope([PARTS[0], UNIVERSAL_PART]));
+    renderPage();
+    await screen.findByRole('table');
+
+    const row = (await screen.findByText('נורת חזית אוניברסלית')).closest('tr') as HTMLElement;
+    expect(within(row).getByText('כל הרכבים')).toBeInTheDocument();
   });
 });
 

@@ -76,15 +76,16 @@ export interface Part {
   quantity_current: number;
 }
 
-// Editable part fields (inventory create + edit forms, FR-7.1). The backend
-// allows manufacturer/model/year_start to be null, but the inventory management
-// screen requires them, so they are non-nullable here.
+// Editable part fields (inventory create + edit forms, FR-7.1). manufacturer,
+// model and year_start are nullable: a "universal" part (fits all vehicles) is
+// sent with all three null, which the backend treats as wildcard dimensions in
+// GET /api/parts/compatible.
 export interface PartInput {
   part_name: string;
   part_code: string;
-  manufacturer: string;
-  model: string;
-  year_start: number;
+  manufacturer: string | null;
+  model: string | null;
+  year_start: number | null;
   quantity_current: number;
 }
 
