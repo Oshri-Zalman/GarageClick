@@ -132,6 +132,7 @@ or multi-vehicle part can be modeled as a single row.
 | GET  | `/api/admin/tickets/summary` | Manager | Counts per status + avg completion time |
 | GET  | `/api/admin/tickets/by-day?start_date=&end_date=` | Manager | Per-day created/completed + avg time |
 | GET  | `/api/admin/reports/performance?mechanic_id=` | Manager | Per-mechanic performance metrics |
+| GET  | `/api/admin/users` | Manager | List all users (incl. username + is_active) for user management |
 | POST | `/api/admin/users` | Manager | Create a user |
 | PATCH| `/api/admin/users/{id}` | Manager | Update user (password, role, name, activate/deactivate) |
 | DELETE | `/api/admin/users/{id}` | Manager | Delete a user (409 if referenced — deactivate instead) |

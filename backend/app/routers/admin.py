@@ -204,6 +204,17 @@ def performance(
 # ------------------------------------------------------------------
 # User management (FR-6.4) — Manager only
 # ------------------------------------------------------------------
+@router.get("/users")
+def list_users(
+    db: Session = Depends(get_db),
+    _: dict = Depends(require_roles("Manager")),
+):
+    """Full user list for the Manager's user-management screen (incl. username
+    and is_active, which /api/admin/employees does not expose)."""
+    rows = db.scalars(select(User).order_by(User.full_name)).all()
+    return [_serialize_user(u) for u in rows]
+
+
 @router.post("/users", status_code=status.HTTP_201_CREATED)
 def create_user(
     body: UserCreate,
