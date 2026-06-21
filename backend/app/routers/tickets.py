@@ -346,6 +346,7 @@ def list_tickets(
                 "created_at": t.created_at,
                 "started_at": t.started_at,
                 "completed_at": t.completed_at,
+                "archived_at": t.archived_at,
                 "license_plate": v.license_plate,
                 "manufacturer": v.manufacturer,
                 "model": v.model,
