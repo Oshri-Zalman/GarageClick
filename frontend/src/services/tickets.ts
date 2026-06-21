@@ -9,6 +9,10 @@ import type {
 interface ListParams {
   status?: TicketStatus;
   mechanic_id?: number;
+  // When true, the backend returns archived (closed) tickets alongside active
+  // ones (GET /api/tickets?include_archived=true). Omitted by default so the
+  // Work Board keeps fetching active tickets only. Used by "הכרטיסים שלי".
+  include_archived?: boolean;
 }
 
 // POST /api/tickets — opens a new work ticket. Accepts either the existing
@@ -22,6 +26,8 @@ export async function createTicket(payload: CreateTicketPayload): Promise<Kanban
 
 // GET /api/tickets — returns the flat list of tickets. The backend already
 // scopes Mechanics to their own tickets and applies any status/mechanic filter.
+// By default archived (closed) tickets are excluded; pass include_archived=true
+// to fetch the personal ticket history ("הכרטיסים שלי").
 export async function listTickets(params: ListParams = {}): Promise<KanbanTicket[]> {
   const { data } = await apiClient.get<Paginated<KanbanTicket>>('/tickets', { params });
   return data.items;

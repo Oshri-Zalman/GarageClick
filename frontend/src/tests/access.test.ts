@@ -65,8 +65,10 @@ describe('role access config', () => {
     const managerPaths = navItemsForRole('Manager').map((i) => i.to);
     expect(managerPaths).toContain('/reports');
     expect(managerPaths).toContain('/users');
-    expect(managerPaths).toContain('/manager-dashboard');
     expect(managerPaths).toContain('/my-tickets');
+    // Employee monitoring lives inside the Manager Dashboard (/dashboard), so the
+    // standalone /manager-dashboard page is no longer a sidebar nav item (Stage 10).
+    expect(managerPaths).not.toContain('/manager-dashboard');
 
     const secretaryPaths = navItemsForRole('Secretary').map((i) => i.to);
     expect(secretaryPaths).toContain('/parts');

@@ -50,6 +50,11 @@ describe('Sidebar Hebrew navigation', () => {
     );
     expect(screen.getByText('דוחות')).toBeInTheDocument();
     expect(screen.getByText('ניהול משתמשים')).toBeInTheDocument();
+    // Employee monitoring lives inside the Manager Dashboard (/dashboard), so the
+    // standalone "ניטור עובדים" sidebar item was removed (Stage 10).
+    expect(screen.queryByText('ניטור עובדים')).not.toBeInTheDocument();
+    // The personal ticket history is a Manager nav item.
+    expect(screen.getByText('הכרטיסים שלי')).toBeInTheDocument();
   });
 });
 

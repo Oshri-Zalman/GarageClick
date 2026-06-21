@@ -68,7 +68,9 @@ describe('Manager access', () => {
     // Manager-only sidebar entries (labels differ from page headings).
     expect(screen.getByText('דוחות')).toBeInTheDocument();
     expect(screen.getByText('ניהול משתמשים')).toBeInTheDocument();
-    expect(screen.getByText('ניטור עובדים')).toBeInTheDocument();
+    // "ניטור עובדים" is no longer a sidebar item — employee monitoring lives
+    // inside the Manager Dashboard (/dashboard) (Stage 10 navigation cleanup).
+    expect(screen.queryByText('ניטור עובדים')).not.toBeInTheDocument();
   });
 
   it('can open user management', async () => {

@@ -20,7 +20,10 @@ const NAV_ITEMS: NavItem[] = [
   // The /tickets/new route still exists (see allowedRoles) for direct access.
   { to: '/customers', label: 'לקוחות ורכבים', icon: '🚗' },
   { to: '/parts', label: 'מלאי חלקים', icon: '🔩' },
-  { to: '/manager-dashboard', label: 'ניטור עובדים', icon: '📈' },
+  // "ניטור עובדים" intentionally has no sidebar entry: employee monitoring lives
+  // inside the Manager Dashboard at /dashboard (see ManagerDashboard). The
+  // /manager-dashboard route is kept for backward compatibility (allowedRoles
+  // below) but is no longer surfaced in navigation.
   { to: '/reports', label: 'דוחות', icon: '📊' },
   { to: '/users', label: 'ניהול משתמשים', icon: '👥' },
 ];
