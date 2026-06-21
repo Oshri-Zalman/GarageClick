@@ -49,8 +49,6 @@ function makeTicket(overrides: Partial<KanbanTicket>): KanbanTicket {
 
 const ARCHIVED_AT = '2026-06-18T10:00:00Z';
 
-// One archived + one active ticket, both belonging to the current user — used to
-// prove only archived tickets render.
 const ARCHIVED = makeTicket({
   id: 1,
   status: 'Completed',
@@ -84,9 +82,9 @@ beforeEach(() => {
 });
 
 describe('MyTicketsPage — rendering & data source', () => {
-  it('renders the page title', async () => {
+  it('renders the archive page title', async () => {
     renderPage();
-    expect(screen.getByRole('heading', { name: 'הכרטיסים שלי' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'ארכיון כרטיסים' })).toBeInTheDocument();
     await screen.findByText('11-111-11');
   });
 
@@ -114,7 +112,7 @@ describe('MyTicketsPage — rendering & data source', () => {
     expect(within(card).getByText(/בארכיון/)).toBeInTheDocument();
   });
 
-  it('shows useful ticket details (customer, mechanic, dates)', async () => {
+  it('shows useful ticket details (customer, mechanic, description)', async () => {
     renderPage();
     const card = (await screen.findByText('11-111-11')).closest('article')!;
     expect(within(card).getByText('משה כהן')).toBeInTheDocument();
@@ -162,35 +160,50 @@ describe('MyTicketsPage — search & filter', () => {
 });
 
 describe('MyTicketsPage — role scoping', () => {
+  // Two archived tickets: one assigned to the current user, one to someone else.
   const tickets = [
-    makeTicket({ id: 1, archived_at: ARCHIVED_AT, license_plate: 'ASSIGNED', assigned_mechanic_id: ME, created_by_id: OTHER }),
-    makeTicket({ id: 2, archived_at: ARCHIVED_AT, license_plate: 'CREATED', assigned_mechanic_id: OTHER, created_by_id: ME }),
-    makeTicket({ id: 3, archived_at: ARCHIVED_AT, license_plate: 'OTHERS', assigned_mechanic_id: OTHER, created_by_id: OTHER }),
+    makeTicket({ id: 1, archived_at: ARCHIVED_AT, license_plate: 'MINE', assigned_mechanic_id: ME }),
+    makeTicket({ id: 2, archived_at: ARCHIVED_AT, license_plate: 'OTHERS', assigned_mechanic_id: OTHER }),
   ];
 
   beforeEach(() => {
     vi.mocked(listTickets).mockResolvedValue(tickets);
   });
 
-  it('Mechanic sees only archived tickets assigned to them', async () => {
+  it('Mechanic sees only archived tickets assigned to them and no scope tabs', async () => {
     renderPage(makeUser('Mechanic'));
-    await screen.findByText('ASSIGNED');
-    expect(screen.queryByText('CREATED')).not.toBeInTheDocument();
+    await screen.findByText('MINE');
     expect(screen.queryByText('OTHERS')).not.toBeInTheDocument();
+    // A Mechanic has a single fixed scope — no tabs.
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
   });
 
-  it('Manager sees archived tickets assigned to self or created by self', async () => {
-    renderPage(makeUser('Manager'));
-    await screen.findByText('ASSIGNED');
-    expect(screen.getByText('CREATED')).toBeInTheDocument();
-    expect(screen.queryByText('OTHERS')).not.toBeInTheDocument();
-  });
-
-  it('Secretary sees archived tickets created by self only', async () => {
+  it('Secretary sees the whole garage archive and no scope tabs', async () => {
     renderPage(makeUser('Secretary'));
-    await screen.findByText('CREATED');
-    expect(screen.queryByText('ASSIGNED')).not.toBeInTheDocument();
+    await screen.findByText('MINE');
+    expect(screen.getByText('OTHERS')).toBeInTheDocument();
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    // Secretary has no personal/garage toggle.
+    expect(screen.queryByRole('tab', { name: 'הארכיון שלי' })).not.toBeInTheDocument();
+  });
+
+  it('Manager defaults to the personal archive (assigned to self only)', async () => {
+    renderPage(makeUser('Manager'));
+    await screen.findByText('MINE');
     expect(screen.queryByText('OTHERS')).not.toBeInTheDocument();
+    // Two tabs are shown, personal selected by default.
+    expect(screen.getByRole('tab', { name: 'הארכיון שלי' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'ארכיון המוסך' })).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('Manager can switch to the garage archive to see all archived tickets', async () => {
+    renderPage(makeUser('Manager'));
+    await screen.findByText('MINE');
+
+    await userEvent.click(screen.getByRole('tab', { name: 'ארכיון המוסך' }));
+
+    expect(screen.getByText('MINE')).toBeInTheDocument();
+    expect(screen.getByText('OTHERS')).toBeInTheDocument();
   });
 });
 
@@ -204,7 +217,7 @@ describe('MyTicketsPage — states', () => {
   it('shows a Hebrew empty state when there are no archived tickets', async () => {
     vi.mocked(listTickets).mockResolvedValue([ACTIVE_PENDING]); // only active tickets
     renderPage();
-    expect(await screen.findByText('עדיין אין כרטיסים סגורים בהיסטוריה שלך.')).toBeInTheDocument();
+    expect(await screen.findByText('אין כרטיסים סגורים בארכיון להצגה.')).toBeInTheDocument();
   });
 
   it('shows a Hebrew error state with retry that re-fetches', async () => {

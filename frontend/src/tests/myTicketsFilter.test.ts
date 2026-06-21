@@ -1,8 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { filterArchivedForUser, isArchived, formatDateTime } from '../utils/myTickets';
+import {
+  filterArchive,
+  isArchived,
+  scopesForRole,
+  defaultScopeForRole,
+  formatDateTime,
+} from '../utils/myTickets';
 import type { KanbanTicket, User } from '../types';
 
-// IDs used across the role-scoping fixtures.
+// IDs used across the scoping fixtures.
 const ME = 10;
 const OTHER = 20;
 
@@ -47,46 +53,64 @@ describe('isArchived', () => {
   });
 });
 
-describe('filterArchivedForUser', () => {
+describe('scopesForRole / defaultScopeForRole', () => {
+  it('Manager has both personal and garage scopes, defaulting to personal', () => {
+    expect(scopesForRole('Manager')).toEqual(['mine', 'garage']);
+    expect(defaultScopeForRole('Manager')).toBe('mine');
+  });
+
+  it('Mechanic has the personal scope only', () => {
+    expect(scopesForRole('Mechanic')).toEqual(['mine']);
+    expect(defaultScopeForRole('Mechanic')).toBe('mine');
+  });
+
+  it('Secretary has the garage scope only', () => {
+    expect(scopesForRole('Secretary')).toEqual(['garage']);
+    expect(defaultScopeForRole('Secretary')).toBe('garage');
+  });
+});
+
+describe('filterArchive', () => {
   it('excludes active (non-archived) tickets entirely', () => {
     const tickets = [
       makeTicket({ id: 1, archived_at: null }),
       makeTicket({ id: 2, status: 'Completed', archived_at: null }),
       makeTicket({ id: 3, archived_at: ARCHIVED_AT }),
     ];
-    const result = filterArchivedForUser(tickets, makeUser('Manager'));
-    expect(result.map((t) => t.id)).toEqual([3]);
+    expect(filterArchive(tickets, makeUser('Manager'), 'garage').map((t) => t.id)).toEqual([3]);
   });
 
-  it('Mechanic sees only archived tickets assigned to themselves', () => {
+  it("'mine' scope keeps only tickets assigned to the user", () => {
     const tickets = [
       makeTicket({ id: 1, archived_at: ARCHIVED_AT, assigned_mechanic_id: ME }),
       makeTicket({ id: 2, archived_at: ARCHIVED_AT, assigned_mechanic_id: OTHER }),
+    ];
+    expect(filterArchive(tickets, makeUser('Manager'), 'mine').map((t) => t.id)).toEqual([1]);
+  });
+
+  it("'garage' scope keeps every archived ticket regardless of assignment", () => {
+    const tickets = [
+      makeTicket({ id: 1, archived_at: ARCHIVED_AT, assigned_mechanic_id: ME }),
+      makeTicket({ id: 2, archived_at: ARCHIVED_AT, assigned_mechanic_id: OTHER }),
+    ];
+    expect(filterArchive(tickets, makeUser('Manager'), 'garage').map((t) => t.id)).toEqual([1, 2]);
+  });
+
+  it('Mechanic only ever sees their own tickets, even with the garage scope', () => {
+    const tickets = [
+      makeTicket({ id: 1, archived_at: ARCHIVED_AT, assigned_mechanic_id: ME }),
+      makeTicket({ id: 2, archived_at: ARCHIVED_AT, assigned_mechanic_id: OTHER }),
+    ];
+    expect(filterArchive(tickets, makeUser('Mechanic'), 'garage').map((t) => t.id)).toEqual([1]);
+  });
+
+  it('Secretary garage scope returns all archived tickets the backend returned', () => {
+    const tickets = [
+      makeTicket({ id: 1, archived_at: ARCHIVED_AT, assigned_mechanic_id: OTHER }),
+      makeTicket({ id: 2, archived_at: ARCHIVED_AT, assigned_mechanic_id: ME }),
       makeTicket({ id: 3, archived_at: null, assigned_mechanic_id: ME }),
     ];
-    const result = filterArchivedForUser(tickets, makeUser('Mechanic'));
-    expect(result.map((t) => t.id)).toEqual([1]);
-  });
-
-  it('Manager sees archived tickets assigned to self OR created by self', () => {
-    const tickets = [
-      makeTicket({ id: 1, archived_at: ARCHIVED_AT, assigned_mechanic_id: ME, created_by_id: OTHER }),
-      makeTicket({ id: 2, archived_at: ARCHIVED_AT, assigned_mechanic_id: OTHER, created_by_id: ME }),
-      makeTicket({ id: 3, archived_at: ARCHIVED_AT, assigned_mechanic_id: OTHER, created_by_id: OTHER }),
-      makeTicket({ id: 4, archived_at: null, assigned_mechanic_id: ME, created_by_id: ME }),
-    ];
-    const result = filterArchivedForUser(tickets, makeUser('Manager'));
-    expect(result.map((t) => t.id)).toEqual([1, 2]);
-  });
-
-  it('Secretary sees archived tickets created by self only', () => {
-    const tickets = [
-      makeTicket({ id: 1, archived_at: ARCHIVED_AT, created_by_id: ME, assigned_mechanic_id: OTHER }),
-      makeTicket({ id: 2, archived_at: ARCHIVED_AT, created_by_id: OTHER, assigned_mechanic_id: ME }),
-      makeTicket({ id: 3, archived_at: null, created_by_id: ME }),
-    ];
-    const result = filterArchivedForUser(tickets, makeUser('Secretary'));
-    expect(result.map((t) => t.id)).toEqual([1]);
+    expect(filterArchive(tickets, makeUser('Secretary'), 'garage').map((t) => t.id)).toEqual([1, 2]);
   });
 });
 
