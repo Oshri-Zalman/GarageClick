@@ -31,6 +31,20 @@ vi.mock('../services/users', () => ({
   deleteUser: vi.fn(),
 }));
 
+// The Reports page reads the manager-only admin endpoints on mount (Stage 11);
+// stub them so the Manager-access route test stays offline.
+vi.mock('../services/admin', () => ({
+  getTicketsSummary: vi.fn().mockResolvedValue({
+    total_pending: 0,
+    total_in_progress: 0,
+    total_completed: 0,
+    avg_completion_minutes: null,
+  }),
+  getEmployees: vi.fn().mockResolvedValue([]),
+  getTicketsByDay: vi.fn().mockResolvedValue([]),
+  getPerformance: vi.fn(),
+}));
+
 // These are full-app integration tests: they exercise the real auth service
 // (backed by sessionStorage), the route guards, and the sidebar together.
 
@@ -64,9 +78,10 @@ describe('Manager access', () => {
     goTo('/reports');
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'דוחות מנהל' })).toBeInTheDocument();
-    // Manager-only sidebar entries (labels differ from page headings).
-    expect(screen.getByText('דוחות')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'דוחות' })).toBeInTheDocument();
+    // Manager-only sidebar entries. The Reports page heading is also "דוחות", so
+    // match the sidebar entry on its navigation link specifically.
+    expect(screen.getByRole('link', { name: /דוחות/ })).toBeInTheDocument();
     expect(screen.getByText('ניהול משתמשים')).toBeInTheDocument();
     // "ניטור עובדים" is no longer a sidebar item — employee monitoring lives
     // inside the Manager Dashboard (/dashboard) (Stage 10 navigation cleanup).
@@ -116,7 +131,7 @@ describe('Secretary access', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: 'לוח בקרה' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'דוחות מנהל' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'דוחות' })).not.toBeInTheDocument();
   });
 
   it('is redirected away from User Management back to its home page', async () => {
@@ -175,7 +190,7 @@ describe('Mechanic access', () => {
     goTo('/reports');
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'לוח עבודה' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'דוחות מנהל' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'דוחות' })).not.toBeInTheDocument();
   });
 
   it('is redirected away from User Management to Kanban', async () => {

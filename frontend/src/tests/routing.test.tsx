@@ -39,6 +39,20 @@ vi.mock('../services/users', () => ({
   deleteUser: vi.fn(),
 }));
 
+// ReportsPage fetches the manager-only admin endpoints on mount (Stage 11);
+// stub them so this render check stays offline.
+vi.mock('../services/admin', () => ({
+  getTicketsSummary: vi.fn().mockResolvedValue({
+    total_pending: 0,
+    total_in_progress: 0,
+    total_completed: 0,
+    avg_completion_minutes: null,
+  }),
+  getEmployees: vi.fn().mockResolvedValue([]),
+  getTicketsByDay: vi.fn().mockResolvedValue([]),
+  getPerformance: vi.fn(),
+}));
+
 import { getStoredUser } from '../services/auth';
 
 function renderAt(path: string, element: React.ReactElement) {
@@ -115,9 +129,9 @@ describe('Route placeholders render', () => {
     vi.mocked(getStoredUser).mockReturnValue(null);
   });
 
-  it('/reports renders ReportsPage in Hebrew', () => {
+  it('/reports renders ReportsPage in Hebrew', async () => {
     renderAt('/reports', <ReportsPage />);
-    expect(screen.getByRole('heading', { name: 'דוחות מנהל' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'דוחות' })).toBeInTheDocument();
   });
 
   it('/users renders UsersPage in Hebrew', () => {
