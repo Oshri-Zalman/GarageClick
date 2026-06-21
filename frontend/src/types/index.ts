@@ -11,6 +11,39 @@ export interface User {
   is_active: boolean;
 }
 
+// A user row from GET /api/admin/users (Manager-only user management, FR-6.4 /
+// Stage 9). `password_hash` is never returned by the backend. `full_name` and
+// `email` are nullable; `created_at` is an ISO timestamp.
+export interface ManagedUser {
+  id: number;
+  username: string;
+  role: Role;
+  full_name: string | null;
+  email: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+// POST /api/admin/users — create a user. `password` is the temporary password the
+// new user signs in with. `email` is optional.
+export interface CreateUserInput {
+  username: string;
+  password: string;
+  role: Role;
+  full_name: string;
+  email?: string | null;
+}
+
+// PATCH /api/admin/users/{id} — partial update. Every field is optional; the
+// backend applies only those present (full name/role edit, activate/deactivate
+// via is_active, reset temporary password via password).
+export interface UpdateUserInput {
+  full_name?: string;
+  role?: Role;
+  is_active?: boolean;
+  password?: string;
+}
+
 export interface Customer {
   id: number;
   full_name: string;

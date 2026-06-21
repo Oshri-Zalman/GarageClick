@@ -22,6 +22,15 @@ vi.mock('../services/staff', () => ({
   }),
 }));
 
+// The User Management page fetches the user list on mount; stub it so the
+// Manager-access route test stays offline (Stage 9).
+vi.mock('../services/users', () => ({
+  listUsers: vi.fn().mockResolvedValue([]),
+  createUser: vi.fn(),
+  updateUser: vi.fn(),
+  deleteUser: vi.fn(),
+}));
+
 // These are full-app integration tests: they exercise the real auth service
 // (backed by sessionStorage), the route guards, and the sidebar together.
 
