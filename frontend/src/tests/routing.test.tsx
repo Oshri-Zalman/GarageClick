@@ -30,6 +30,15 @@ vi.mock('../services/parts', () => ({
   updatePartQuantity: vi.fn(),
 }));
 
+// UsersPage fetches the user list on mount; stub the service so this synchronous
+// render check never hits the network (Stage 9).
+vi.mock('../services/users', () => ({
+  listUsers: vi.fn().mockResolvedValue([]),
+  createUser: vi.fn(),
+  updateUser: vi.fn(),
+  deleteUser: vi.fn(),
+}));
+
 import { getStoredUser } from '../services/auth';
 
 function renderAt(path: string, element: React.ReactElement) {
@@ -112,8 +121,18 @@ describe('Route placeholders render', () => {
   });
 
   it('/users renders UsersPage in Hebrew', () => {
+    // UsersPage requires an authenticated Manager (Stage 9).
+    vi.mocked(getStoredUser).mockReturnValue({
+      id: 1,
+      username: 'uri',
+      full_name: 'אורי',
+      email: null,
+      role: 'Manager',
+      is_active: true,
+    });
     renderAt('/users', <UsersPage />);
     expect(screen.getByRole('heading', { name: 'ניהול משתמשים' })).toBeInTheDocument();
+    vi.mocked(getStoredUser).mockReturnValue(null);
   });
 
   it('unknown path renders NotFoundPage in Hebrew', () => {
