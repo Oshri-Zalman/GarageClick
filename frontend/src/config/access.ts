@@ -15,12 +15,15 @@ export interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard', label: 'לוח בקרה', icon: '🏠' },
   { to: '/kanban', label: 'לוח עבודה', icon: '📋' },
-  { to: '/my-tickets', label: 'הכרטיסים שלי', icon: '🧾' },
+  { to: '/my-tickets', label: 'ארכיון כרטיסים', icon: '🗄️' },
   // New Ticket is opened from a modal on the Work Board, not as a sidebar item.
   // The /tickets/new route still exists (see allowedRoles) for direct access.
   { to: '/customers', label: 'לקוחות ורכבים', icon: '🚗' },
   { to: '/parts', label: 'מלאי חלקים', icon: '🔩' },
-  { to: '/manager-dashboard', label: 'ניטור עובדים', icon: '📈' },
+  // "ניטור עובדים" intentionally has no sidebar entry: employee monitoring lives
+  // inside the Manager Dashboard at /dashboard (see ManagerDashboard). The
+  // /manager-dashboard route is kept for backward compatibility (allowedRoles
+  // below) but is no longer surfaced in navigation.
   { to: '/reports', label: 'דוחות', icon: '📊' },
   { to: '/users', label: 'ניהול משתמשים', icon: '👥' },
 ];
@@ -41,9 +44,10 @@ export function allowedRoles(path: string): Role[] {
       // mechanics (a mechanic always opens tickets on themselves).
       return ['Manager', 'Secretary', 'Mechanic'];
     case '/my-tickets':
-      // Mechanics live here; managers also open/own tickets on themselves and
-      // must be able to see their own.
-      return ['Manager', 'Mechanic'];
+      // Ticket archive ("ארכיון כרטיסים") — open to every role. Visibility is
+      // scoped inside the page: Mechanic sees their own archive, Secretary sees
+      // the garage archive, Manager toggles between personal and garage archives.
+      return ['Manager', 'Secretary', 'Mechanic'];
     case '/manager-dashboard':
     case '/reports':
     case '/users':

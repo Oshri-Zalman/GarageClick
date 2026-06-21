@@ -45,11 +45,11 @@ describe('role access config', () => {
     expect(canAccess('Mechanic', '/tickets/new')).toBe(true);
   });
 
-  it('Manager can also access My Tickets, but Secretary cannot', async () => {
+  it('every role can access the ticket archive (ארכיון כרטיסים)', async () => {
     const { canAccess } = await import('../config/access');
     expect(canAccess('Manager', '/my-tickets')).toBe(true);
     expect(canAccess('Mechanic', '/my-tickets')).toBe(true);
-    expect(canAccess('Secretary', '/my-tickets')).toBe(false);
+    expect(canAccess('Secretary', '/my-tickets')).toBe(true);
   });
 
   it('home path routes mechanics to kanban and others to dashboard', async () => {
@@ -65,14 +65,17 @@ describe('role access config', () => {
     const managerPaths = navItemsForRole('Manager').map((i) => i.to);
     expect(managerPaths).toContain('/reports');
     expect(managerPaths).toContain('/users');
-    expect(managerPaths).toContain('/manager-dashboard');
     expect(managerPaths).toContain('/my-tickets');
+    // Employee monitoring lives inside the Manager Dashboard (/dashboard), so the
+    // standalone /manager-dashboard page is no longer a sidebar nav item (Stage 10).
+    expect(managerPaths).not.toContain('/manager-dashboard');
 
     const secretaryPaths = navItemsForRole('Secretary').map((i) => i.to);
     expect(secretaryPaths).toContain('/parts');
+    // The ticket archive (ארכיון כרטיסים) is now available to every role.
+    expect(secretaryPaths).toContain('/my-tickets');
     // New Ticket is opened from the Work Board modal, not a sidebar nav item.
     expect(secretaryPaths).not.toContain('/tickets/new');
-    expect(secretaryPaths).not.toContain('/my-tickets');
     expect(secretaryPaths).not.toContain('/reports');
 
     const mechanicPaths = navItemsForRole('Mechanic').map((i) => i.to);

@@ -27,6 +27,8 @@ describe('Sidebar Hebrew navigation', () => {
     expect(screen.getByText('לוח עבודה')).toBeInTheDocument();
     expect(screen.getByText('לקוחות ורכבים')).toBeInTheDocument();
     expect(screen.getByText('מלאי חלקים')).toBeInTheDocument();
+    // The ticket archive is available to every role, including Secretary.
+    expect(screen.getByText('ארכיון כרטיסים')).toBeInTheDocument();
     // New Ticket moved to a Work Board modal — no longer a sidebar item.
     expect(screen.queryByText('קריאה חדשה')).not.toBeInTheDocument();
   });
@@ -50,6 +52,20 @@ describe('Sidebar Hebrew navigation', () => {
     );
     expect(screen.getByText('דוחות')).toBeInTheDocument();
     expect(screen.getByText('ניהול משתמשים')).toBeInTheDocument();
+    // Employee monitoring lives inside the Manager Dashboard (/dashboard), so the
+    // standalone "ניטור עובדים" sidebar item was removed (Stage 10).
+    expect(screen.queryByText('ניטור עובדים')).not.toBeInTheDocument();
+    // The ticket archive is a Manager nav item too.
+    expect(screen.getByText('ארכיון כרטיסים')).toBeInTheDocument();
+  });
+
+  it('shows the ticket archive nav item for Mechanic', () => {
+    render(
+      <MemoryRouter>
+        <Sidebar userRole="Mechanic" />
+      </MemoryRouter>
+    );
+    expect(screen.getByText('ארכיון כרטיסים')).toBeInTheDocument();
   });
 });
 

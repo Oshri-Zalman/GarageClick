@@ -68,7 +68,9 @@ describe('Manager access', () => {
     // Manager-only sidebar entries (labels differ from page headings).
     expect(screen.getByText('דוחות')).toBeInTheDocument();
     expect(screen.getByText('ניהול משתמשים')).toBeInTheDocument();
-    expect(screen.getByText('ניטור עובדים')).toBeInTheDocument();
+    // "ניטור עובדים" is no longer a sidebar item — employee monitoring lives
+    // inside the Manager Dashboard (/dashboard) (Stage 10 navigation cleanup).
+    expect(screen.queryByText('ניטור עובדים')).not.toBeInTheDocument();
   });
 
   it('can open user management', async () => {
@@ -78,11 +80,11 @@ describe('Manager access', () => {
     expect(await screen.findByRole('heading', { name: 'ניהול משתמשים' })).toBeInTheDocument();
   });
 
-  it('can open My Tickets (own/assigned tickets)', async () => {
+  it('can open the ticket archive', async () => {
     loginAs('Manager');
     goTo('/my-tickets');
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'הכרטיסים שלי' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'ארכיון כרטיסים' })).toBeInTheDocument();
   });
 });
 
@@ -94,9 +96,18 @@ describe('Secretary access', () => {
 
     expect(await screen.findByRole('heading', { name: 'לוח בקרה' })).toBeInTheDocument();
     expect(screen.getByText('מלאי חלקים')).toBeInTheDocument();
+    // The ticket archive is available to Secretary as well.
+    expect(screen.getByText('ארכיון כרטיסים')).toBeInTheDocument();
     expect(screen.queryByText('דוחות')).not.toBeInTheDocument();
     expect(screen.queryByText('ניהול משתמשים')).not.toBeInTheDocument();
     expect(screen.queryByText('ניטור עובדים')).not.toBeInTheDocument();
+  });
+
+  it('can open the ticket archive (garage archive)', async () => {
+    loginAs('Secretary');
+    goTo('/my-tickets');
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'ארכיון כרטיסים' })).toBeInTheDocument();
   });
 
   it('is redirected away from Reports back to its home page', async () => {
@@ -125,7 +136,7 @@ describe('Mechanic access', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: 'לוח עבודה' })).toBeInTheDocument();
-    expect(screen.getByText('הכרטיסים שלי')).toBeInTheDocument();
+    expect(screen.getByText('ארכיון כרטיסים')).toBeInTheDocument();
     // New Ticket is now opened from a Work Board modal, not a sidebar item.
     expect(screen.queryByText('קריאה חדשה')).not.toBeInTheDocument();
     expect(screen.queryByText('מלאי חלקים')).not.toBeInTheDocument();
@@ -135,11 +146,11 @@ describe('Mechanic access', () => {
     expect(screen.queryByText('לקוחות ורכבים')).not.toBeInTheDocument();
   });
 
-  it('can open the My Tickets page', async () => {
+  it('can open the ticket archive page', async () => {
     loginAs('Mechanic');
     goTo('/my-tickets');
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'הכרטיסים שלי' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'ארכיון כרטיסים' })).toBeInTheDocument();
   });
 
   it('can open the New Ticket page', async () => {
