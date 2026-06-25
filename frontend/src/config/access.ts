@@ -24,7 +24,11 @@ const NAV_ITEMS: NavItem[] = [
   // inside the Manager Dashboard at /dashboard (see ManagerDashboard). The
   // /manager-dashboard route is kept for backward compatibility (allowedRoles
   // below) but is no longer surfaced in navigation.
-  { to: '/reports', label: 'דוחות', icon: '📊' },
+  //
+  // "דוחות" (/reports) likewise has no sidebar entry: reports are redundant with
+  // the report-like sections inside the Manager Dashboard (/dashboard). The
+  // /reports route is kept for backward compatibility (allowedRoles below) but is
+  // no longer surfaced in navigation.
   { to: '/users', label: 'ניהול משתמשים', icon: '👥' },
 ];
 

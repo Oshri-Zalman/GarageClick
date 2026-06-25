@@ -31,6 +31,9 @@ describe('Sidebar Hebrew navigation', () => {
     expect(screen.getByText('ארכיון כרטיסים')).toBeInTheDocument();
     // New Ticket moved to a Work Board modal — no longer a sidebar item.
     expect(screen.queryByText('קריאה חדשה')).not.toBeInTheDocument();
+    // Reports ("דוחות") were removed from the sidebar — redundant with the
+    // report-like sections inside the Manager Dashboard. Not shown for Secretary.
+    expect(screen.queryByText('דוחות')).not.toBeInTheDocument();
   });
 
   it('hides Manager-only and inventory items from Mechanic', () => {
@@ -50,8 +53,10 @@ describe('Sidebar Hebrew navigation', () => {
         <Sidebar userRole="Manager" />
       </MemoryRouter>
     );
-    expect(screen.getByText('דוחות')).toBeInTheDocument();
     expect(screen.getByText('ניהול משתמשים')).toBeInTheDocument();
+    // Reports ("דוחות") were removed from the sidebar even for Manager — they are
+    // redundant with the report-like sections inside the Manager Dashboard.
+    expect(screen.queryByText('דוחות')).not.toBeInTheDocument();
     // Employee monitoring lives inside the Manager Dashboard (/dashboard), so the
     // standalone "ניטור עובדים" sidebar item was removed (Stage 10).
     expect(screen.queryByText('ניטור עובדים')).not.toBeInTheDocument();
