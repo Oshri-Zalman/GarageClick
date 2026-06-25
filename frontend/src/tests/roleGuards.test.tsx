@@ -64,9 +64,13 @@ describe('Manager access', () => {
     goTo('/reports');
     render(<App />);
 
+    // The /reports route is still reachable directly (kept for backward
+    // compatibility), so the page heading still renders…
     expect(await screen.findByRole('heading', { name: 'דוחות מנהל' })).toBeInTheDocument();
+    // …but "דוחות" is no longer a sidebar item — reports are redundant with the
+    // report-like sections inside the Manager Dashboard.
+    expect(screen.queryByText('דוחות')).not.toBeInTheDocument();
     // Manager-only sidebar entries (labels differ from page headings).
-    expect(screen.getByText('דוחות')).toBeInTheDocument();
     expect(screen.getByText('ניהול משתמשים')).toBeInTheDocument();
     // "ניטור עובדים" is no longer a sidebar item — employee monitoring lives
     // inside the Manager Dashboard (/dashboard) (Stage 10 navigation cleanup).

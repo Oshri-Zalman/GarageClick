@@ -63,12 +63,15 @@ describe('role access config', () => {
     const { navItemsForRole } = await import('../config/access');
 
     const managerPaths = navItemsForRole('Manager').map((i) => i.to);
-    expect(managerPaths).toContain('/reports');
     expect(managerPaths).toContain('/users');
     expect(managerPaths).toContain('/my-tickets');
     // Employee monitoring lives inside the Manager Dashboard (/dashboard), so the
     // standalone /manager-dashboard page is no longer a sidebar nav item (Stage 10).
     expect(managerPaths).not.toContain('/manager-dashboard');
+    // Reports are redundant with the report-like sections inside the Manager
+    // Dashboard, so /reports is no longer a sidebar nav item for any role. The
+    // route itself is kept (allowedRoles) for backward compatibility.
+    expect(managerPaths).not.toContain('/reports');
 
     const secretaryPaths = navItemsForRole('Secretary').map((i) => i.to);
     expect(secretaryPaths).toContain('/parts');
@@ -84,6 +87,7 @@ describe('role access config', () => {
     expect(mechanicPaths).not.toContain('/tickets/new');
     expect(mechanicPaths).not.toContain('/parts');
     expect(mechanicPaths).not.toContain('/customers');
+    expect(mechanicPaths).not.toContain('/reports');
   });
 
   it('shared/unknown routes are open to all signed-in roles', async () => {
