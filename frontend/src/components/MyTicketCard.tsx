@@ -9,7 +9,7 @@ interface Props {
 
 // Read-only history card for a single closed/archived ticket (Stage 10). Shows
 // the useful ticket details; there are deliberately no edit/advance actions —
-// "הכרטיסים שלי" is an archive, not a working board.
+// the ticket archive ("ארכיון כרטיסים") is an archive, not a working board.
 export default function MyTicketCard({ ticket }: Props) {
   return (
     <article className="rounded-xl border border-amber-100 bg-white p-4 shadow-sm">

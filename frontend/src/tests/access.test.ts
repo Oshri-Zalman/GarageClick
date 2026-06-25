@@ -90,6 +90,43 @@ describe('role access config', () => {
     expect(mechanicPaths).not.toContain('/reports');
   });
 
+  // Final integration contract: the *complete* sidebar label set each role sees.
+  // Asserting the whole set (not just spot-checks) locks the navigation contract
+  // for the demo — any accidental re-introduction of "דוחות" or "ניטור עובדים",
+  // or a dropped "ארכיון כרטיסים", fails here in one obvious place.
+  it('exposes the exact sidebar label set per role', async () => {
+    const { navItemsForRole } = await import('../config/access');
+    const labels = (role: Role) => navItemsForRole(role).map((i) => i.label);
+
+    expect(labels('Manager')).toEqual([
+      'לוח בקרה',
+      'לוח עבודה',
+      'ארכיון כרטיסים',
+      'לקוחות ורכבים',
+      'מלאי חלקים',
+      'ניהול משתמשים',
+    ]);
+
+    expect(labels('Secretary')).toEqual([
+      'לוח בקרה',
+      'לוח עבודה',
+      'ארכיון כרטיסים',
+      'לקוחות ורכבים',
+      'מלאי חלקים',
+    ]);
+
+    expect(labels('Mechanic')).toEqual(['לוח עבודה', 'ארכיון כרטיסים']);
+
+    // Cancelled/relocated features must never appear in any role's sidebar.
+    for (const role of ROLES) {
+      expect(labels(role)).not.toContain('דוחות');
+      expect(labels(role)).not.toContain('דוחות מנהל');
+      expect(labels(role)).not.toContain('ניטור עובדים');
+      // The ticket archive keeps its current label, never the old "הכרטיסים שלי".
+      expect(labels(role)).not.toContain('הכרטיסים שלי');
+    }
+  });
+
   it('shared/unknown routes are open to all signed-in roles', async () => {
     const { canAccess } = await import('../config/access');
     for (const role of ROLES) {

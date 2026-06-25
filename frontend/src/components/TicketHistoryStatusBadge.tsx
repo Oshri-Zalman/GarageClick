@@ -1,6 +1,6 @@
 // A small badge marking a ticket as closed and kept in history (Stage 10).
-// Shown on every card in "הכרטיסים שלי" alongside the original status badge, so a
-// closed ticket reads as archived rather than active.
+// Shown on every card in the ticket archive ("ארכיון כרטיסים") alongside the
+// original status badge, so a closed ticket reads as archived rather than active.
 export default function TicketHistoryStatusBadge() {
   return (
     <span
