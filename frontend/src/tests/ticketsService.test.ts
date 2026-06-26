@@ -23,6 +23,12 @@ describe('tickets service', () => {
     expect(mockedGet).toHaveBeenCalledWith('/tickets', { params: {} });
   });
 
+  it('listTickets forwards archived_only=true for the ticket archive', async () => {
+    mockedGet.mockResolvedValueOnce({ data: { items: [TICKET], page: 1, limit: 20, total: 1 } });
+    await listTickets({ archived_only: true });
+    expect(mockedGet).toHaveBeenCalledWith('/tickets', { params: { archived_only: true } });
+  });
+
   it('updateTicketStatus PATCHes the new status + confirmation flag', async () => {
     mockedPatch.mockResolvedValueOnce({ data: TICKET });
     await updateTicketStatus(7, 'Completed', true);

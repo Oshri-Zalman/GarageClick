@@ -107,11 +107,13 @@ describe('KanbanBoard — layout', () => {
     renderBoard(makeUser('Manager'));
     await screen.findByRole('region', { name: 'ממתין לטיפול' });
 
-    // The Work Board must keep its default behaviour: no include_archived flag,
-    // so closed/archived tickets never leak onto the active board (Stage 10).
+    // The Work Board must keep its default behaviour: no include_archived or
+    // archived_only flag, so closed/archived tickets never leak onto the active
+    // board (Stage 10).
     expect(listTickets).toHaveBeenCalledTimes(1);
     const params = vi.mocked(listTickets).mock.calls[0][0] ?? {};
     expect(params).not.toHaveProperty('include_archived');
+    expect(params).not.toHaveProperty('archived_only');
   });
 
   it('shows the correct count in each column counter', async () => {

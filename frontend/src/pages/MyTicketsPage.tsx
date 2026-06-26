@@ -18,7 +18,8 @@ import ErrorMessage from '../components/ErrorMessage';
 //
 // Active tickets live on the Work Board (לוח עבודה); this page shows ONLY
 // closed/archived tickets (archived_at != null). It fetches with
-// include_archived=true and filters client-side per the chosen scope:
+// archived_only=true so the backend returns just the archive, then scopes the
+// result client-side per the chosen view:
 //   • Mechanic  — their own archive only.
 //   • Secretary — the garage archive (all archived tickets the backend returns).
 //   • Manager   — toggles between "הארכיון שלי" (assigned to them) and
@@ -39,11 +40,13 @@ export default function MyTicketsPage() {
     user ? defaultScopeForRole(user.role) : 'mine'
   );
 
-  // Fetches the full list (including archived) and folds it into state. State is
-  // only touched asynchronously, so this is safe to call from an effect.
+  // Fetches the archive (archived_at != null) and folds it into state. The
+  // backend does the archive filtering (archived_only=true) and Mechanic
+  // scoping; filterArchive still applies defensively client-side. State is only
+  // touched asynchronously, so this is safe to call from an effect.
   const fetchTickets = useCallback(
     () =>
-      listTickets({ include_archived: true })
+      listTickets({ archived_only: true })
         .then(setTickets)
         .catch(() => setError('שגיאה בטעינת הכרטיסים. נסה שוב.'))
         .finally(() => setLoading(false)),
