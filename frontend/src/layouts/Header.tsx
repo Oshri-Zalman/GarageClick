@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { logout } from '../services/auth';
 import { useNavigate } from 'react-router-dom';
 import { roleLabel } from '../config/roles';
+import ChangePasswordDialog from '../components/ChangePasswordDialog';
 
 interface Props {
   userName?: string;
@@ -9,6 +11,7 @@ interface Props {
 
 export default function Header({ userName, userRole }: Props) {
   const navigate = useNavigate();
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -31,12 +34,21 @@ export default function Header({ userName, userRole }: Props) {
             )}
           </span>
           <button
+            onClick={() => setChangePasswordOpen(true)}
+            className="rounded-md bg-amber-800 px-3 py-1.5 text-sm hover:bg-amber-900 transition-colors"
+          >
+            החלפת סיסמה
+          </button>
+          <button
             onClick={handleLogout}
             className="rounded-md bg-amber-800 px-3 py-1.5 text-sm hover:bg-amber-900 transition-colors"
           >
             יציאה
           </button>
         </div>
+      )}
+      {changePasswordOpen && (
+        <ChangePasswordDialog onClose={() => setChangePasswordOpen(false)} />
       )}
     </header>
   );
