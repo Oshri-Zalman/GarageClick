@@ -35,6 +35,9 @@ export default function UsersTable({
               שם משתמש
             </th>
             <th scope="col" className="px-4 py-3 font-semibold">
+              אימייל
+            </th>
+            <th scope="col" className="px-4 py-3 font-semibold">
               תפקיד
             </th>
             <th scope="col" className="px-4 py-3 font-semibold">
@@ -57,6 +60,9 @@ export default function UsersTable({
                 <td className="px-4 py-3 text-gray-600" dir="ltr">
                   {user.username}
                 </td>
+                <td className="px-4 py-3 text-gray-600" dir="ltr">
+                  {user.email ? user.email : <span dir="rtl" className="text-gray-400">—</span>}
+                </td>
                 <td className="px-4 py-3">
                   <UserRoleBadge role={user.role} />
                 </td>
@@ -75,7 +81,12 @@ export default function UsersTable({
                     <button
                       type="button"
                       onClick={() => onToggleActive(user)}
-                      className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors ${
+                      // A manager cannot deactivate their own account (backend
+                      // returns 400); disable the self-deactivate action so the
+                      // dead-end is clear up front.
+                      disabled={isSelf && user.is_active}
+                      title={isSelf && user.is_active ? 'לא ניתן להשבית את המשתמש שלך.' : undefined}
+                      className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                         user.is_active
                           ? 'border-amber-300 text-amber-800 hover:bg-amber-50'
                           : 'border-green-300 text-green-800 hover:bg-green-50'

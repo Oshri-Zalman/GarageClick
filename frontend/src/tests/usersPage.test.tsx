@@ -276,6 +276,145 @@ describe('UsersPage — delete user', () => {
   });
 });
 
+describe('UsersPage — email column', () => {
+  it('renders a user email in the table', async () => {
+    vi.mocked(listUsers).mockResolvedValue([{ ...USERS[1], email: 'sara@example.com' }, USERS[2]]);
+    renderPage();
+    await screen.findByRole('table', { name: 'טבלת משתמשים' });
+    expect(within(rowFor('שרה מזכירה')).getByText('sara@example.com')).toBeInTheDocument();
+  });
+
+  it('renders a dash fallback when a user has no email', async () => {
+    renderPage();
+    await screen.findByRole('table', { name: 'טבלת משתמשים' });
+    expect(within(rowFor('שרה מזכירה')).getByText('—')).toBeInTheDocument();
+  });
+});
+
+describe('UsersPage — create user email', () => {
+  it('submits the email when one is provided', async () => {
+    vi.mocked(createUser).mockResolvedValue(USERS[2]);
+    renderPage();
+    await screen.findByRole('table', { name: 'טבלת משתמשים' });
+
+    await userEvent.click(screen.getByRole('button', { name: '➕ משתמש חדש' }));
+    const form = screen.getByRole('form', { name: 'משתמש חדש' });
+    await userEvent.type(within(form).getByLabelText('שם משתמש'), 'newmech');
+    await userEvent.type(within(form).getByLabelText('סיסמה זמנית'), 'secret123');
+    await userEvent.type(within(form).getByLabelText('שם מלא'), 'מכונאי חדש');
+    await userEvent.type(within(form).getByLabelText('אימייל (אופציונלי)'), 'mech@example.com');
+    await userEvent.click(within(form).getByRole('button', { name: 'צור משתמש' }));
+
+    expect(createUser).toHaveBeenCalledWith({
+      username: 'newmech',
+      password: 'secret123',
+      full_name: 'מכונאי חדש',
+      role: 'Mechanic',
+      email: 'mech@example.com',
+    });
+  });
+
+  it('allows creating a user without an email (email omitted)', async () => {
+    vi.mocked(createUser).mockResolvedValue(USERS[2]);
+    renderPage();
+    await screen.findByRole('table', { name: 'טבלת משתמשים' });
+
+    await userEvent.click(screen.getByRole('button', { name: '➕ משתמש חדש' }));
+    const form = screen.getByRole('form', { name: 'משתמש חדש' });
+    await userEvent.type(within(form).getByLabelText('שם משתמש'), 'newmech');
+    await userEvent.type(within(form).getByLabelText('סיסמה זמנית'), 'secret123');
+    await userEvent.type(within(form).getByLabelText('שם מלא'), 'מכונאי חדש');
+    await userEvent.click(within(form).getByRole('button', { name: 'צור משתמש' }));
+
+    expect(createUser).toHaveBeenCalledWith({
+      username: 'newmech',
+      password: 'secret123',
+      full_name: 'מכונאי חדש',
+      role: 'Mechanic',
+    });
+  });
+
+  it('blocks an invalid email with a Hebrew message and does not call the API', async () => {
+    renderPage();
+    await screen.findByRole('table', { name: 'טבלת משתמשים' });
+
+    await userEvent.click(screen.getByRole('button', { name: '➕ משתמש חדש' }));
+    const form = screen.getByRole('form', { name: 'משתמש חדש' });
+    await userEvent.type(within(form).getByLabelText('שם משתמש'), 'newmech');
+    await userEvent.type(within(form).getByLabelText('סיסמה זמנית'), 'secret123');
+    await userEvent.type(within(form).getByLabelText('שם מלא'), 'מכונאי חדש');
+    await userEvent.type(within(form).getByLabelText('אימייל (אופציונלי)'), 'not-an-email');
+    await userEvent.click(within(form).getByRole('button', { name: 'צור משתמש' }));
+
+    expect(await within(form).findByText('יש להזין כתובת אימייל תקינה.')).toBeInTheDocument();
+    expect(createUser).not.toHaveBeenCalled();
+  });
+
+  it('maps a duplicate-email backend error to Hebrew', async () => {
+    vi.mocked(createUser).mockRejectedValueOnce(axiosError('email already exists.', 409));
+    renderPage();
+    await screen.findByRole('table', { name: 'טבלת משתמשים' });
+
+    await userEvent.click(screen.getByRole('button', { name: '➕ משתמש חדש' }));
+    const form = screen.getByRole('form', { name: 'משתמש חדש' });
+    await userEvent.type(within(form).getByLabelText('שם משתמש'), 'newmech');
+    await userEvent.type(within(form).getByLabelText('סיסמה זמנית'), 'secret123');
+    await userEvent.type(within(form).getByLabelText('שם מלא'), 'מכונאי חדש');
+    await userEvent.type(within(form).getByLabelText('אימייל (אופציונלי)'), 'dup@example.com');
+    await userEvent.click(within(form).getByRole('button', { name: 'צור משתמש' }));
+
+    expect(await within(form).findByText('כתובת האימייל כבר קיימת במערכת.')).toBeInTheDocument();
+  });
+});
+
+describe('UsersPage — edit user email', () => {
+  it('prefills the email and submits the updated value', async () => {
+    vi.mocked(listUsers).mockResolvedValue([{ ...USERS[1], email: 'sara@old.com' }, USERS[2]]);
+    vi.mocked(updateUser).mockResolvedValue({ ...USERS[1], email: 'sara@new.com' });
+    renderPage();
+    await screen.findByRole('table', { name: 'טבלת משתמשים' });
+
+    await userEvent.click(within(rowFor('שרה מזכירה')).getByRole('button', { name: 'ערוך' }));
+    const form = screen.getByRole('form', { name: 'עריכת משתמש' });
+    expect(within(form).getByLabelText('אימייל (אופציונלי)')).toHaveValue('sara@old.com');
+
+    await userEvent.clear(within(form).getByLabelText('אימייל (אופציונלי)'));
+    await userEvent.type(within(form).getByLabelText('אימייל (אופציונלי)'), 'sara@new.com');
+    await userEvent.click(within(form).getByRole('button', { name: 'שמור שינויים' }));
+
+    expect(updateUser).toHaveBeenCalledWith(2, {
+      full_name: 'שרה מזכירה',
+      role: 'Secretary',
+      email: 'sara@new.com',
+    });
+  });
+});
+
+describe('UsersPage — self protection', () => {
+  it('disables the deactivate button on the manager\'s own row only', async () => {
+    renderPage();
+    await screen.findByRole('table', { name: 'טבלת משתמשים' });
+
+    // Own row (id 1) — deactivate is disabled.
+    expect(within(rowFor('מירה מנהלת')).getByRole('button', { name: 'השבת' })).toBeDisabled();
+    // Other active user — deactivate is enabled.
+    expect(within(rowFor('שרה מזכירה')).getByRole('button', { name: 'השבת' })).toBeEnabled();
+  });
+
+  it('blocks demoting yourself from Manager in the edit form', async () => {
+    renderPage();
+    await screen.findByRole('table', { name: 'טבלת משתמשים' });
+
+    await userEvent.click(within(rowFor('מירה מנהלת')).getByRole('button', { name: 'ערוך' }));
+    const form = screen.getByRole('form', { name: 'עריכת משתמש' });
+    await userEvent.selectOptions(within(form).getByLabelText('תפקיד'), 'Secretary');
+    await userEvent.click(within(form).getByRole('button', { name: 'שמור שינויים' }));
+
+    expect(await within(form).findByText('לא ניתן להסיר מעצמך הרשאת מנהל.')).toBeInTheDocument();
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+});
+
 describe('UsersPage — reset temporary password', () => {
   it('validates and then resets the password via PATCH', async () => {
     vi.mocked(updateUser).mockResolvedValue(USERS[1]);
