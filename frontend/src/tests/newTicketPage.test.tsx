@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { AxiosError } from 'axios';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import NewTicketPage from '../pages/NewTicketPage';
 import type { KanbanTicket, Mechanic, User, VehicleSearchHit } from '../types';
@@ -284,6 +285,30 @@ describe('NewTicketPage', () => {
 
     expect(await screen.findByText(/שגיאה בפתיחת הכרטיס/)).toBeInTheDocument();
     expect(screen.queryByText('הכרטיס נפתח בהצלחה')).not.toBeInTheDocument();
+  });
+
+  it('shows the Hebrew incompatible-part message when the backend rejects a part', async () => {
+    mockUser = MECHANIC;
+    vi.mocked(searchVehicle).mockResolvedValueOnce(VEHICLE_HIT);
+    const incompatible = new AxiosError('request failed');
+    incompatible.response = {
+      data: {
+        detail:
+          'Part "בלמים דיסק קדמי" is not compatible with this vehicle (Volkswagen Golf).',
+      },
+    } as AxiosError['response'];
+    vi.mocked(createTicket).mockRejectedValueOnce(incompatible);
+    renderPage();
+    await doSearch();
+    await screen.findByTestId('existing-vehicle-summary');
+
+    await userEvent.type(screen.getByLabelText('תיאור התקלה'), 'החלפת בלמים');
+    await chooseNoParts();
+    await userEvent.click(screen.getByRole('button', { name: 'פתח כרטיס' }));
+
+    // The known backend detail wins over the generic ticket-creation error.
+    expect(await screen.findByText('החלף אינו תואם לרכב זה.')).toBeInTheDocument();
+    expect(screen.queryByText(/שגיאה בפתיחת הכרטיס/)).not.toBeInTheDocument();
   });
 
   it('shows the Hebrew search-error message when the lookup fails', async () => {

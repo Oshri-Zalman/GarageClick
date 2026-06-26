@@ -49,6 +49,22 @@ describe('getCompatibleParts', () => {
     });
   });
 
+  it('omits the year param when year is null (existing vehicle without a year)', async () => {
+    mockedGet.mockResolvedValueOnce({ data: [] });
+    await getCompatibleParts('Volkswagen', 'Golf', null);
+    expect(mockedGet).toHaveBeenCalledWith('/parts/compatible', {
+      params: { manufacturer: 'Volkswagen', model: 'Golf' },
+    });
+  });
+
+  it('omits the year param when year is undefined', async () => {
+    mockedGet.mockResolvedValueOnce({ data: [] });
+    await getCompatibleParts('Volkswagen', 'Golf');
+    expect(mockedGet).toHaveBeenCalledWith('/parts/compatible', {
+      params: { manufacturer: 'Volkswagen', model: 'Golf' },
+    });
+  });
+
   it('returns the compatible parts list from the response', async () => {
     const rows = [
       {

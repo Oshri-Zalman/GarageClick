@@ -47,6 +47,13 @@ describe('apiErrorMessage', () => {
     );
   });
 
+  it('maps an incompatible-part ticket error to Hebrew', () => {
+    const err = axiosErrorWithDetail(
+      'Part "בלמים דיסק קדמי" is not compatible with this vehicle (Volkswagen Golf).'
+    );
+    expect(apiErrorMessage(err, FALLBACK)).toBe('החלף אינו תואם לרכב זה.');
+  });
+
   it('falls back to the generic Hebrew message for unknown details', () => {
     const err = axiosErrorWithDetail('Some unexpected server error');
     expect(apiErrorMessage(err, FALLBACK)).toBe(FALLBACK);
