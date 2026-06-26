@@ -5,6 +5,9 @@ import { ROLE_LABELS } from '../config/roles';
 interface Props {
   // When provided, the form edits this user; otherwise it creates a new one.
   user?: ManagedUser;
+  // True when the edited row is the signed-in manager's own account; used to
+  // block self-demotion from Manager (which the backend rejects with 400).
+  isSelf?: boolean;
   submitting: boolean;
   error?: string | null;
   onCreate: (input: CreateUserInput) => void;
@@ -17,6 +20,7 @@ interface Errors {
   password?: string;
   full_name?: string;
   role?: string;
+  email?: string;
 }
 
 const fieldClass =
@@ -25,6 +29,9 @@ const fieldClass =
 // Backend minimums (see backend/app/schemas.py — UserCreate/UserUpdate).
 const USERNAME_MIN = 3;
 const PASSWORD_MIN = 6;
+const EMAIL_MAX = 100;
+// Mirrors the backend email validation (regex-validated, optional).
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const ROLES: Role[] = ['Manager', 'Secretary', 'Mechanic'];
 
@@ -33,11 +40,20 @@ const ROLES: Role[] = ['Manager', 'Secretary', 'Mechanic'];
 // (the backend PATCH has no username field) and the password is changed through
 // the separate reset-password dialog, so only full name and role are editable.
 // Validation mirrors the backend: username >= 3 chars, password >= 6 chars.
-export default function UserForm({ user, submitting, error, onCreate, onUpdate, onCancel }: Props) {
+export default function UserForm({
+  user,
+  isSelf = false,
+  submitting,
+  error,
+  onCreate,
+  onUpdate,
+  onCancel,
+}: Props) {
   const isEdit = user !== undefined;
   const [username, setUsername] = useState(user?.username ?? '');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState(user?.full_name ?? '');
+  const [email, setEmail] = useState(user?.email ?? '');
   const [role, setRole] = useState<Role>(user?.role ?? 'Mechanic');
   const [errors, setErrors] = useState<Errors>({});
 
@@ -52,7 +68,17 @@ export default function UserForm({ user, submitting, error, onCreate, onUpdate, 
         errs.password = `הסיסמה חייבת להכיל לפחות ${PASSWORD_MIN} תווים`;
     }
     if (!fullName.trim()) errs.full_name = 'יש להזין שם מלא';
+    // Email is optional, but when provided it must be a valid address (mirrors
+    // the backend regex/length validation).
+    const trimmedEmail = email.trim();
+    if (trimmedEmail) {
+      if (trimmedEmail.length > EMAIL_MAX || !EMAIL_RE.test(trimmedEmail))
+        errs.email = 'יש להזין כתובת אימייל תקינה.';
+    }
     if (!ROLES.includes(role)) errs.role = 'יש לבחור תפקיד';
+    // A manager cannot strip their own Manager role (backend returns 400).
+    if (isEdit && isSelf && user?.role === 'Manager' && role !== 'Manager')
+      errs.role = 'לא ניתן להסיר מעצמך הרשאת מנהל.';
     return errs;
   };
 
@@ -62,21 +88,27 @@ export default function UserForm({ user, submitting, error, onCreate, onUpdate, 
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
+    const trimmedEmail = email.trim();
     if (isEdit) {
-      onUpdate({ full_name: fullName.trim(), role });
+      const input: UpdateUserInput = { full_name: fullName.trim(), role };
+      if (trimmedEmail) input.email = trimmedEmail;
+      onUpdate(input);
     } else {
-      onCreate({
+      const input: CreateUserInput = {
         username: username.trim(),
         password,
         full_name: fullName.trim(),
         role,
-      });
+      };
+      if (trimmedEmail) input.email = trimmedEmail;
+      onCreate(input);
     }
   };
 
   return (
     <form
       onSubmit={handleSubmit}
+      noValidate
       className="flex flex-col gap-4"
       aria-label={isEdit ? 'עריכת משתמש' : 'משתמש חדש'}
     >
@@ -121,6 +153,17 @@ export default function UserForm({ user, submitting, error, onCreate, onUpdate, 
             type="text"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
+            className={fieldClass}
+          />
+        </Field>
+
+        <Field id="user-email" label="אימייל (אופציונלי)" error={errors.email}>
+          <input
+            id="user-email"
+            type="email"
+            dir="ltr"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             className={fieldClass}
           />
         </Field>

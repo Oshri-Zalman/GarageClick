@@ -218,6 +218,7 @@ export default function UsersPage() {
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <UserForm
             user={form.user}
+            isSelf={form.user.id === user.id}
             submitting={submitting}
             error={formError}
             onCreate={() => {}}

@@ -42,6 +42,7 @@ export interface UpdateUserInput {
   role?: Role;
   is_active?: boolean;
   password?: string;
+  email?: string | null;
 }
 
 export interface Customer {

@@ -9,8 +9,12 @@ import { AxiosError } from 'axios';
 // (see backend/app/routers/admin.py — user management section).
 const KNOWN_ERRORS: { match: string; hebrew: string }[] = [
   { match: 'username already exists', hebrew: 'שם המשתמש כבר קיים במערכת.' },
+  { match: 'email already exists', hebrew: 'כתובת האימייל כבר קיימת במערכת.' },
+  { match: 'email must be a valid email address', hebrew: 'יש להזין כתובת אימייל תקינה.' },
   { match: 'User not found', hebrew: 'המשתמש לא נמצא במערכת.' },
   { match: 'cannot delete your own account', hebrew: 'לא ניתן למחוק את המשתמש שלך.' },
+  { match: 'cannot deactivate your own account', hebrew: 'לא ניתן להשבית את המשתמש שלך.' },
+  { match: 'cannot remove your own Manager role', hebrew: 'לא ניתן להסיר מעצמך הרשאת מנהל.' },
   {
     match: 'referenced by tickets',
     hebrew: 'לא ניתן למחוק משתמש המשויך לכרטיסים. יש להשבית אותו במקום זאת.',
