@@ -1,0 +1,5 @@
+# Process definitions for Render / Railway / Heroku-style platforms.
+# 'release' runs once per deploy to create tables, apply migrations, and seed
+# the vehicle catalog (idempotent). 'web' serves the API.
+release: python -m app.init_db
+web: uvicorn app.main:app --host 0.0.0.0 --port $PORT

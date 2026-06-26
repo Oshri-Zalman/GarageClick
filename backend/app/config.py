@@ -26,6 +26,18 @@ class Settings:
     TWILIO_AUTH_TOKEN: str = os.getenv("TWILIO_AUTH_TOKEN", "")
     TWILIO_WHATSAPP_FROM: str = os.getenv("TWILIO_WHATSAPP_FROM", "")
 
+    def cors_origins(self) -> list[str]:
+        """Allowed CORS origins. Read at call time so it is env-configurable.
+
+        CORS_ORIGINS is a comma-separated list, e.g.
+        "https://garageclick.example.com,https://www.garageclick.example.com".
+        Defaults to "*" (open) for local dev; set it explicitly in production.
+        """
+        raw = os.getenv("CORS_ORIGINS", "*").strip()
+        if raw == "*" or not raw:
+            return ["*"]
+        return [o.strip() for o in raw.split(",") if o.strip()]
+
     def database_url(self, db_name: str | None = None) -> str:
         """SQLAlchemy URL for the given database (defaults to DB_NAME)."""
         name = db_name or self.DB_NAME
