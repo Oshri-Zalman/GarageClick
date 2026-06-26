@@ -27,6 +27,19 @@ logger = logging.getLogger("garageclick.tickets")
 router = APIRouter(prefix="/api/tickets", tags=["tickets"])
 
 
+def _part_fits(part, vehicle) -> bool:
+    """Mirror of GET /api/parts/compatible: a NULL part field is a wildcard, and
+    the year is only checked when both the part's year_start and the vehicle's
+    year are known."""
+    if part.manufacturer is not None and part.manufacturer != vehicle.manufacturer:
+        return False
+    if part.model is not None and part.model != vehicle.model:
+        return False
+    if part.year_start is not None and vehicle.year is not None and part.year_start > vehicle.year:
+        return False
+    return True
+
+
 def _fetch_ticket(db: Session, ticket_id: int) -> dict | None:
     """Return a ticket joined with vehicle, customer, and mechanic (or None)."""
     row = db.execute(
@@ -140,6 +153,13 @@ def create_ticket(
                     status.HTTP_409_CONFLICT,
                     f'Part "{part.part_name}" is out of stock '
                     f"(requested {line.quantity}, available {part.quantity_current}).",
+                )
+            # Enforce compatibility server-side (don't trust the frontend filter).
+            if not _part_fits(part, vehicle):
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f'Part "{part.part_name}" is not compatible with this vehicle '
+                    f"({vehicle.manufacturer} {vehicle.model}).",
                 )
             plan.append((part, line.quantity))
 
@@ -300,13 +320,15 @@ def list_tickets(
     status_filter: str | None = Query(default=None, alias="status"),
     mechanic_id: int | None = Query(default=None),
     include_archived: bool = Query(default=False),
+    archived_only: bool = Query(default=False),
     page: dict = Depends(pagination),
     db: Session = Depends(get_db),
     user: dict = Depends(require_roles(*ALL_ROLES)),
 ):
     """Paginated ticket list (the Kanban board). Mechanic is forced to their own;
-    Manager/Secretary see all. Archived (closed) tickets are excluded unless
-    include_archived=true."""
+    Manager/Secretary see all. Archived (closed) tickets are excluded by default;
+    use include_archived=true to also include them, or archived_only=true to get
+    only the archived/closed ones (the "My Tickets" history page)."""
     conditions = []
     if user["role"] == "Mechanic":
         conditions.append(TicketWork.assigned_mechanic_id == user["user_id"])
@@ -314,7 +336,9 @@ def list_tickets(
         conditions.append(TicketWork.assigned_mechanic_id == mechanic_id)
     if status_filter:
         conditions.append(TicketWork.status == status_filter)
-    if not include_archived:
+    if archived_only:
+        conditions.append(TicketWork.archived_at.is_not(None))
+    elif not include_archived:
         conditions.append(TicketWork.archived_at.is_(None))
 
     total = db.scalar(

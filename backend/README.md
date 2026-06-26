@@ -96,7 +96,18 @@ Bad input is rejected with `422` and a clear message instead of reaching the DB:
 ### Parts compatibility (NULL = wildcard)
 In `GET /api/parts/compatible`, a part whose `manufacturer`, `model`, or
 `year_start` is `NULL` matches **any** vehicle on that dimension — so a general
-or multi-vehicle part can be modeled as a single row.
+or multi-vehicle part can be modeled as a single row. `year` is optional; when
+omitted (e.g. a vehicle with no known year) the year filter is dropped.
+
+`POST /api/tickets` **enforces** compatibility server-side: a requested part that
+doesn't fit the ticket's vehicle is rejected with `400`. To convert a specific
+part into a general one, `PUT /api/parts/{id}` with explicit
+`manufacturer/model/year_start = null` (omitted fields are left unchanged).
+
+### Users
+`email` is optional, validated, and **unique** (`409` on duplicate). A user can
+change their own password via `POST /api/auth/change-password`. A Manager cannot
+deactivate their own account or remove their own Manager role (`400`).
 
 ## Endpoints
 
@@ -106,6 +117,7 @@ or multi-vehicle part can be modeled as a single row.
 | POST | `/api/auth/login` | public | Exchange credentials for a JWT (records `last_login`) |
 | GET  | `/api/auth/verify-token` | any role | Validate token + echo identity |
 | POST | `/api/auth/logout` | any role | Revoke the caller's token |
+| POST | `/api/auth/change-password` | any role | Change own password (`current_password` + `new_password`) |
 | GET  | `/api/customers/search?license_plate=` or `?phone=` | all roles | Search customer by plate, or by phone (partial, digits-only) |
 | GET  | `/api/customers` | Manager, Secretary | List customers |
 | GET/POST | `/api/customers`, `/api/customers/{id}` | see code | Read/create |
@@ -121,6 +133,7 @@ or multi-vehicle part can be modeled as a single row.
 | POST | `/api/tickets` | all roles | Open a ticket (existing vehicle, or new customer+vehicle) |
 | POST | `/api/tickets/{id}/archive` | all roles* | Close a **Completed** ticket: stays in DB/history, leaves the board |
 | GET  | `/api/tickets?include_archived=true` | all roles* | Include archived tickets (default excludes them) |
+| GET  | `/api/tickets?archived_only=true` | all roles* | Only archived/closed tickets (the "My Tickets" history) |
 | PATCH| `/api/tickets/{id}/status` | all roles* | Status change via state machine |
 | GET  | `/api/tickets`, `/api/tickets/{id}` | all roles* | List / detail (Mechanic: own only) |
 | GET  | `/api/parts/compatible?manufacturer=&model=&year=` | all roles | Compatible parts (out-of-stock flagged) |

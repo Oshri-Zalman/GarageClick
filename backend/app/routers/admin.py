@@ -233,7 +233,11 @@ def create_user(
         is_active=True,
     )
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "email already exists.")
     db.refresh(user)
     return _serialize_user(user)
 
@@ -243,9 +247,9 @@ def update_user(
     user_id: int,
     body: UserUpdate,
     db: Session = Depends(get_db),
-    _: dict = Depends(require_roles("Manager")),
+    current: dict = Depends(require_roles("Manager")),
 ):
-    """Update a user — change password, role, name, or activate/deactivate."""
+    """Update a user — change password, role, email, name, or activate/deactivate."""
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found.")
@@ -253,11 +257,27 @@ def update_user(
     data = body.model_dump(exclude_unset=True, exclude_none=True)
     if not data:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Provide at least one field to update.")
+
+    # Prevent a manager from locking themselves out.
+    if user_id == current["user_id"]:
+        if data.get("is_active") is False:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "You cannot deactivate your own account."
+            )
+        if "role" in data and data["role"] != "Manager":
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "You cannot remove your own Manager role."
+            )
+
     if "password" in data:
         user.password_hash = hash_password(data.pop("password"))
     for key, value in data.items():
         setattr(user, key, value)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "email already exists.")
     db.refresh(user)
     return _serialize_user(user)
 

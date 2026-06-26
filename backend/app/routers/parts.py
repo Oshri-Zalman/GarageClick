@@ -33,23 +33,26 @@ def _serialize(p: PartInventory) -> dict:
 def get_compatible(
     manufacturer: str = Query(...),
     model: str = Query(...),
-    year: int = Query(...),
+    year: int | None = Query(default=None),
     db: Session = Depends(get_db),
     _: dict = Depends(require_roles(*ALL_ROLES)),
 ):
     """Parts matching make/model with year_start <= year. Out-of-stock parts are
-    returned too, flagged available=false (FR-7.2)."""
-    # A NULL field is a wildcard: a part with manufacturer/model/year_start = NULL
-    # is considered compatible with ANY vehicle on that dimension (general or
-    # multi-vehicle parts).
-    rows = db.scalars(
-        select(PartInventory)
-        .where(
-            or_(PartInventory.manufacturer == manufacturer, PartInventory.manufacturer.is_(None)),
-            or_(PartInventory.model == model, PartInventory.model.is_(None)),
-            or_(PartInventory.year_start <= year, PartInventory.year_start.is_(None)),
+    returned too, flagged available=false (FR-7.2).
+
+    A NULL part field is a wildcard (general/multi-vehicle parts). If the vehicle
+    has no known year, the year condition is dropped (item 2)."""
+    conditions = [
+        or_(PartInventory.manufacturer == manufacturer, PartInventory.manufacturer.is_(None)),
+        or_(PartInventory.model == model, PartInventory.model.is_(None)),
+    ]
+    if year is not None:
+        conditions.append(
+            or_(PartInventory.year_start <= year, PartInventory.year_start.is_(None))
         )
-        .order_by(PartInventory.part_name)
+
+    rows = db.scalars(
+        select(PartInventory).where(*conditions).order_by(PartInventory.part_name)
     ).all()
     return [
         {
@@ -126,9 +129,16 @@ def update_part(
     part = db.get(PartInventory, part_id)
     if part is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Part not found.")
-    data = body.model_dump(exclude_unset=True, exclude_none=True)
+    # exclude_unset (not exclude_none) so an EXPLICIT null is applied — this lets
+    # a specific part be turned into a general one by sending manufacturer/model/
+    # year_start = null (item 3). Fields simply omitted are left unchanged.
+    data = body.model_dump(exclude_unset=True)
     if not data:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Provide at least one field to update.")
+    non_nullable = {"part_name", "part_code", "quantity_current"}
+    for key, value in data.items():
+        if value is None and key in non_nullable:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"{key} cannot be null.")
     for key, value in data.items():
         setattr(part, key, value)
     try:

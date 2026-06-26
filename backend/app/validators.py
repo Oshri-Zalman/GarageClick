@@ -48,6 +48,19 @@ def clean_license_plate(value: str) -> str:
     return plate
 
 
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def validate_email(value: str | None) -> str | None:
+    """Basic email shape check (None passes — email is optional)."""
+    if value is None:
+        return value
+    v = value.strip()
+    if not _EMAIL_RE.match(v):
+        raise ValueError("email must be a valid email address.")
+    return v
+
+
 def validate_year(value: int) -> int:
     """Ensure a vehicle/part year is plausible."""
     if value is None:
