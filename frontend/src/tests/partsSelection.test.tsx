@@ -83,6 +83,22 @@ describe('PartsSelection — compatible parts in the ticket flow', () => {
     expect(await screen.findByLabelText('בלמים דיסק קדמי')).toBeInTheDocument();
   });
 
+  it('loads compatible parts for an existing vehicle that has no recorded year', async () => {
+    const onSubmit = vi.fn();
+    render(
+      <ExistingVehicleTicketForm
+        user={MECHANIC}
+        vehicle={{ ...VEHICLE, year: null }}
+        mechanics={MECHANICS}
+        submitting={false}
+        onSubmit={onSubmit}
+      />
+    );
+    // year is omitted (null) — the backend matches by manufacturer/model only.
+    expect(getCompatibleParts).toHaveBeenCalledWith('Volkswagen', 'Golf', null);
+    expect(await screen.findByLabelText('בלמים דיסק קדמי')).toBeInTheDocument();
+  });
+
   it('shows out-of-stock parts but disables their selection', async () => {
     renderExisting();
     const outOfStock = await screen.findByLabelText('מסנן שמן');

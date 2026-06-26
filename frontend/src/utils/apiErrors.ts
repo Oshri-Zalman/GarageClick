@@ -15,6 +15,9 @@ const KNOWN_ERRORS: { match: string; hebrew: string }[] = [
   { match: 'Customer not found', hebrew: 'הלקוח לא נמצא במערכת.' },
   { match: 'Vehicle not found', hebrew: 'הרכב לא נמצא במערכת.' },
   { match: 'Part not found', hebrew: 'החלף לא נמצא במערכת.' },
+  // Ticket creation (Stage 10 follow-up): POST /api/tickets rejects parts that
+  // are not compatible with the selected vehicle.
+  { match: 'is not compatible with this vehicle', hebrew: 'החלף אינו תואם לרכב זה.' },
   // Ticket archiving (Stage 8): only Completed tickets can be closed/archived.
   { match: 'Only a completed ticket can be archived', hebrew: 'ניתן לסגור רק כרטיסים שהושלמו.' },
   { match: 'Ticket is already archived', hebrew: 'הכרטיס כבר נסגר.' },

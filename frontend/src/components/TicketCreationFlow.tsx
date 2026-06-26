@@ -4,6 +4,7 @@ import type { CreateTicketPayload, KanbanTicket, Mechanic, User, VehicleSearchHi
 import { searchVehicle } from '../services/vehicles';
 import { listMechanics } from '../services/mechanics';
 import { createTicket } from '../services/tickets';
+import { apiErrorMessage } from '../utils/apiErrors';
 import LicensePlateSearch from './LicensePlateSearch';
 import ExistingVehicleTicketForm from './ExistingVehicleTicketForm';
 import NewCustomerVehicleTicketForm from './NewCustomerVehicleTicketForm';
@@ -88,8 +89,10 @@ export default function TicketCreationFlow({ user, onCreated, onClose }: Props) 
       const ticket = await createTicket(payload);
       setCreated(ticket);
       onCreated?.(ticket);
-    } catch {
-      setSubmitError('שגיאה בפתיחת הכרטיס. בדוק את הפרטים ונסה שוב.');
+    } catch (err) {
+      // Prefer a known backend detail (e.g. an incompatible-part rejection) over
+      // the generic message, so the user sees why the ticket was refused.
+      setSubmitError(apiErrorMessage(err, 'שגיאה בפתיחת הכרטיס. בדוק את הפרטים ונסה שוב.'));
     } finally {
       setSubmitting(false);
     }

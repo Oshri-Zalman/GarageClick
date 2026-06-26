@@ -35,10 +35,16 @@ export default function PartsSelection({
   // Bumped by the retry button to re-run the load (FR-9).
   const [reloadToken, setReloadToken] = useState(0);
 
-  const vehicleKnown = Boolean(manufacturer && model && year);
+  // Manufacturer + model are enough to load parts. `year` is optional because an
+  // existing vehicle may have no recorded year — the backend then matches by
+  // manufacturer/model only (NULL part fields still act as wildcards).
+  const vehicleKnown = Boolean(manufacturer && model);
   // A stable identity for the current vehicle+retry combo. Drives both the
-  // render-phase loading reset and the fetch effect.
-  const requestKey = vehicleKnown ? `${manufacturer}|${model}|${year}|${reloadToken}` : null;
+  // render-phase loading reset and the fetch effect. A missing year collapses to
+  // an empty segment so the key stays stable.
+  const requestKey = vehicleKnown
+    ? `${manufacturer}|${model}|${year ?? ''}|${reloadToken}`
+    : null;
 
   // The load result, tagged with the requestKey it belongs to so a stale
   // response is ignored once the vehicle changes.
@@ -58,7 +64,7 @@ export default function PartsSelection({
   useEffect(() => {
     if (!requestKey) return;
     let active = true;
-    getCompatibleParts(manufacturer, model, year as number)
+    getCompatibleParts(manufacturer, model, year)
       .then((list) => {
         if (active) setResult({ key: requestKey, status: 'ready', parts: list });
       })
@@ -108,7 +114,7 @@ export default function PartsSelection({
 
       {!vehicleKnown && (
         <p className="text-sm text-gray-500">
-          הזן את פרטי הרכב (יצרן, דגם, שנה) כדי לטעון חלפים תואמים.
+          הזן את פרטי הרכב (יצרן ודגם) כדי לטעון חלפים תואמים.
         </p>
       )}
 
