@@ -6,7 +6,7 @@ message; business-rule failures are raised as HTTPExceptions in the routers
 """
 from pydantic import BaseModel, Field, field_validator
 
-from .validators import clean_license_plate, clean_phone, validate_year
+from .validators import clean_license_plate, clean_phone, validate_email, validate_year
 
 
 # ----- Auth -----
@@ -178,10 +178,16 @@ class UserCreate(BaseModel):
             raise ValueError(f"role must be one of {sorted(_ROLES)}.")
         return v
 
+    @field_validator("email")
+    @classmethod
+    def _email(cls, v):
+        return validate_email(v)
+
 
 class UserUpdate(BaseModel):
     password: str | None = Field(default=None, min_length=6, max_length=255)
     full_name: str | None = Field(default=None, max_length=255)
+    email: str | None = Field(default=None, max_length=100)
     role: str | None = None
     is_active: bool | None = None
 
@@ -191,3 +197,13 @@ class UserUpdate(BaseModel):
         if v is not None and v not in _ROLES:
             raise ValueError(f"role must be one of {sorted(_ROLES)}.")
         return v
+
+    @field_validator("email")
+    @classmethod
+    def _email(cls, v):
+        return validate_email(v)
+
+
+class PasswordChange(BaseModel):
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=6, max_length=255)

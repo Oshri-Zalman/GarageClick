@@ -18,6 +18,7 @@ _COLUMN_MIGRATIONS = [
     "ALTER TABLE users ADD COLUMN last_login DATETIME NULL",
     "ALTER TABLE parts_inventory ADD CONSTRAINT uq_parts_part_code UNIQUE (part_code)",
     "ALTER TABLE tickets_work ADD COLUMN archived_at DATETIME NULL",
+    "ALTER TABLE users ADD CONSTRAINT uq_users_email UNIQUE (email)",
 ]
 
 # Errors that mean "already applied" and can be safely ignored.
