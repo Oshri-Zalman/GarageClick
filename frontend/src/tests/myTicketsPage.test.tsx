@@ -88,11 +88,12 @@ describe('MyTicketsPage — rendering & data source', () => {
     await screen.findByText('11-111-11');
   });
 
-  it('fetches tickets with include_archived=true', async () => {
+  it('fetches tickets with archived_only=true (and not include_archived)', async () => {
     renderPage();
     await screen.findByText('11-111-11');
     expect(listTickets).toHaveBeenCalledTimes(1);
-    expect(listTickets).toHaveBeenCalledWith({ include_archived: true });
+    expect(listTickets).toHaveBeenCalledWith({ archived_only: true });
+    expect(listTickets).not.toHaveBeenCalledWith({ include_archived: true });
   });
 
   it('shows only archived tickets and hides active ones', async () => {
