@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..daterange import date_bounds, range_conditions
 from ..deps import require_roles
 from ..models import TicketWork, User
 from ..schemas import UserCreate, UserUpdate
@@ -79,16 +80,28 @@ def employees(db: Session = Depends(get_db), _: dict = Depends(require_roles("Ma
 
 
 @router.get("/tickets/summary")
-def tickets_summary(db: Session = Depends(get_db), _: dict = Depends(require_roles("Manager"))):
-    """Counts per status + average completion time across completed tickets."""
+def tickets_summary(
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
+    db: Session = Depends(get_db),
+    _: dict = Depends(require_roles("Manager")),
+):
+    """Counts per status + avg completion time. Optional date range filters by
+    ticket open date (created_at); omit for all-time."""
+    lower, upper = date_bounds(start_date, end_date)
+    rng = range_conditions(TicketWork.created_at, lower, upper)
+
     counts = dict(
-        db.execute(select(TicketWork.status, func.count()).group_by(TicketWork.status)).all()
+        db.execute(
+            select(TicketWork.status, func.count()).where(*rng).group_by(TicketWork.status)
+        ).all()
     )
     avg_minutes = db.scalar(
         select(func.avg(_minutes)).where(
             TicketWork.status == "Completed",
             TicketWork.started_at.is_not(None),
             TicketWork.completed_at.is_not(None),
+            *rng,
         )
     )
     return {
@@ -161,35 +174,36 @@ def tickets_by_day(
 @router.get("/reports/performance")
 def performance(
     mechanic_id: int = Query(...),
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
     db: Session = Depends(get_db),
     _: dict = Depends(require_roles("Manager")),
 ):
-    """Quality-oriented performance metrics for a single mechanic."""
+    """Quality-oriented performance metrics for a single mechanic. Optional date
+    range filters by ticket open date (created_at)."""
     user = db.get(User, mechanic_id)
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Mechanic not found.")
 
+    lower, upper = date_bounds(start_date, end_date)
+    rng = range_conditions(TicketWork.created_at, lower, upper)
+    base = [
+        TicketWork.assigned_mechanic_id == mechanic_id,
+        TicketWork.status == "Completed",
+        TicketWork.started_at.is_not(None),
+        TicketWork.completed_at.is_not(None),
+        *rng,
+    ]
+
     completed_count = db.scalar(
-        select(func.count())
-        .select_from(TicketWork)
-        .where(TicketWork.assigned_mechanic_id == mechanic_id, TicketWork.status == "Completed")
-    )
-    total_minutes = db.scalar(
-        select(func.sum(_minutes)).where(
+        select(func.count()).select_from(TicketWork).where(
             TicketWork.assigned_mechanic_id == mechanic_id,
             TicketWork.status == "Completed",
-            TicketWork.started_at.is_not(None),
-            TicketWork.completed_at.is_not(None),
+            *rng,
         )
     )
-    avg_minutes = db.scalar(
-        select(func.avg(_minutes)).where(
-            TicketWork.assigned_mechanic_id == mechanic_id,
-            TicketWork.status == "Completed",
-            TicketWork.started_at.is_not(None),
-            TicketWork.completed_at.is_not(None),
-        )
-    )
+    total_minutes = db.scalar(select(func.sum(_minutes)).where(*base))
+    avg_minutes = db.scalar(select(func.avg(_minutes)).where(*base))
 
     total_minutes = float(total_minutes) if total_minutes is not None else 0.0
     return {
