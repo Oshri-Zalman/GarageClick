@@ -5,11 +5,14 @@ data — ticket counts + average handling time — WITHOUT per-employee performa
 or monitoring. Lets the Secretary dashboard show an accurate, efficient summary
 instead of computing it from the paginated /api/tickets list.
 """
-from fastapi import APIRouter, Depends
+from datetime import date
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..daterange import date_bounds, range_conditions
 from ..deps import STAFF, require_roles
 from ..models import TicketWork
 
@@ -20,18 +23,27 @@ _minutes = func.timestampdiff(text("MINUTE"), TicketWork.started_at, TicketWork.
 
 @router.get("/tickets/summary")
 def staff_tickets_summary(
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
     db: Session = Depends(get_db),
     _: dict = Depends(require_roles(*STAFF)),
 ):
-    """Operational ticket summary (counts per status + avg completion minutes)."""
+    """Operational ticket summary (counts per status + avg completion minutes).
+    Optional date range filters by ticket open date (created_at)."""
+    lower, upper = date_bounds(start_date, end_date)
+    rng = range_conditions(TicketWork.created_at, lower, upper)
+
     counts = dict(
-        db.execute(select(TicketWork.status, func.count()).group_by(TicketWork.status)).all()
+        db.execute(
+            select(TicketWork.status, func.count()).where(*rng).group_by(TicketWork.status)
+        ).all()
     )
     avg_minutes = db.scalar(
         select(func.avg(_minutes)).where(
             TicketWork.status == "Completed",
             TicketWork.started_at.is_not(None),
             TicketWork.completed_at.is_not(None),
+            *rng,
         )
     )
     return {
