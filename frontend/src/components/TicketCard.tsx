@@ -53,6 +53,9 @@ export default function TicketCard({
         <button
           type="button"
           onClick={onAdvance}
+          // Double-clicking an action button must NOT also open the details modal
+          // (the card's onDoubleClick) — it should behave only as the button.
+          onDoubleClick={(e) => e.stopPropagation()}
           disabled={updating}
           className="w-full rounded-md bg-amber-600 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
         >
@@ -64,6 +67,7 @@ export default function TicketCard({
         <button
           type="button"
           onClick={onArchive}
+          onDoubleClick={(e) => e.stopPropagation()}
           disabled={archiving}
           className="w-full rounded-md border border-gray-300 bg-white py-1.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-50"
         >

@@ -285,13 +285,13 @@ describe('KanbanBoard — ticket details modal (double-click)', () => {
     ],
   };
 
-  it('double-clicking a card fetches GET /api/tickets/{id} and opens the details modal', async () => {
+  it('double-clicking the card body fetches GET /api/tickets/{id} and opens the details modal', async () => {
     vi.mocked(getTicket).mockResolvedValue(DETAIL);
     renderBoard(makeUser('Manager'));
     await screen.findByRole('region', { name: 'ממתין לטיפול' });
 
-    const card = within(region('ממתין לטיפול')).getByText('11-111-11').closest('article')!;
-    await userEvent.dblClick(card);
+    // Double-click the card body (the plate text), not a button.
+    await userEvent.dblClick(within(region('ממתין לטיפול')).getByText('11-111-11'));
 
     expect(getTicket).toHaveBeenCalledWith(1);
     const dialog = await screen.findByRole('dialog');
@@ -299,6 +299,34 @@ describe('KanbanBoard — ticket details modal (double-click)', () => {
     // parts_used list is shown.
     expect(within(dialog).getByText(/בלמים/)).toBeInTheDocument();
     expect(within(dialog).getByText('× 2')).toBeInTheDocument();
+  });
+
+  it('double-clicking an action button does NOT open the details modal', async () => {
+    vi.mocked(updateTicketStatus).mockResolvedValue(
+      makeTicket({ id: 1, status: 'In Progress', license_plate: '11-111-11' })
+    );
+    renderBoard(makeUser('Mechanic', MECHANIC_DAVID_ID));
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
+
+    // Double-clicking directly on "התחל טיפול" behaves only as the button — the
+    // card's onDoubleClick (details modal) must not fire.
+    await userEvent.dblClick(screen.getByRole('button', { name: 'התחל טיפול' }));
+
+    expect(getTicket).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('double-clicking the "סגור כרטיס" button does NOT open the details modal', async () => {
+    vi.mocked(archiveTicket).mockResolvedValue(
+      makeTicket({ id: 3, status: 'Completed', license_plate: '33-333-33', archived_at: '2026-06-18T10:00:00Z' })
+    );
+    renderBoard(makeUser('Manager'));
+    await screen.findByRole('region', { name: 'הושלם' });
+
+    await userEvent.dblClick(within(region('הושלם')).getByRole('button', { name: 'סגור כרטיס' }));
+
+    expect(getTicket).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('shows "ללא חלפים" when the ticket used no parts', async () => {

@@ -101,12 +101,15 @@ describe('DashboardPage — Manager', () => {
     expect(within(region).getByText('8')).toBeInTheDocument();
   });
 
-  it('does not display the average completion time anywhere on the dashboard', async () => {
+  it('does not display any average-time metric anywhere on the dashboard', async () => {
     renderDashboard(MANAGER);
-    await screen.findByRole('region', { name: 'סיכום סטטוס קריאות' });
-    // The avg completion KPI/card/column is removed from the dashboard UI.
+    await screen.findByRole('region', { name: 'דוחות ביצועים' });
+    // The avg completion KPI/card/column is removed from the dashboard UI…
     expect(screen.queryByText('זמן טיפול ממוצע')).not.toBeInTheDocument();
     expect(screen.queryByText('4 שעות ו-30 דקות')).not.toBeInTheDocument();
+    // …and so is the per-mechanic average time per ticket on the performance cards.
+    expect(screen.queryByText('זמן ממוצע לקריאה')).not.toBeInTheDocument();
+    expect(screen.queryByText('3 שעות ו-20 דקות')).not.toBeInTheDocument();
   });
 
   it('sends the applied date range to the admin summary and performance (not employee monitoring)', async () => {
@@ -154,14 +157,25 @@ describe('DashboardPage — Manager', () => {
     expect(within(region).getByText('2026-06-02')).toBeInTheDocument();
   });
 
-  it('shows the performance report cards', async () => {
+  it('shows the performance report cards (name + completed tickets + work hours)', async () => {
     renderDashboard(MANAGER);
     const region = await screen.findByRole('region', { name: 'דוחות ביצועים' });
     expect(within(region).getByText('דוד')).toBeInTheDocument();
-    expect(within(region).getByText('12')).toBeInTheDocument();
+    expect(within(region).getByText('12')).toBeInTheDocument(); // tickets_completed
+    expect(within(region).getByText('קריאות שהושלמו')).toBeInTheDocument();
+    expect(within(region).getByText('שעות עבודה')).toBeInTheDocument();
     // Performance is fetched per assignable employee (Mechanic/Manager only).
     expect(getPerformance).toHaveBeenCalledTimes(1);
     expect(getPerformance).toHaveBeenCalledWith(5, {});
+  });
+
+  it('does not show the average time per ticket on the performance cards', async () => {
+    renderDashboard(MANAGER);
+    const region = await screen.findByRole('region', { name: 'דוחות ביצועים' });
+    expect(within(region).getByText('דוד')).toBeInTheDocument();
+    // The avg-time metric (avg_time_per_ticket_minutes → "3 שעות ו-20 דקות") is gone.
+    expect(within(region).queryByText('זמן ממוצע לקריאה')).not.toBeInTheDocument();
+    expect(within(region).queryByText('3 שעות ו-20 דקות')).not.toBeInTheDocument();
   });
 
   it('shows a Hebrew unavailable state for employee monitoring when the endpoint fails', async () => {
