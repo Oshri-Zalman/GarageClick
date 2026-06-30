@@ -71,6 +71,17 @@ describe('Change password — entry point', () => {
     expect(within(dialog).getByLabelText('סיסמה חדשה')).toBeInTheDocument();
     expect(within(dialog).getByLabelText('אימות סיסמה חדשה')).toBeInTheDocument();
   });
+
+  it('renders masked password fields with a visibly dark text color', async () => {
+    const dialog = await openDialog();
+    for (const label of ['סיסמה נוכחית', 'סיסמה חדשה', 'אימות סיסמה חדשה']) {
+      const input = within(dialog).getByLabelText(label);
+      // Stays masked (never plain text)…
+      expect(input).toHaveAttribute('type', 'password');
+      // …and the typed value/bullets are dark enough to actually see.
+      expect(input).toHaveClass('text-gray-900');
+    }
+  });
 });
 
 describe('Change password — validation', () => {

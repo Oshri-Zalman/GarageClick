@@ -10,8 +10,11 @@ interface Props {
 // change-password / UserUpdate.password, currently 6).
 const PASSWORD_MIN = 6;
 
+// `text-gray-900` keeps the typed value — including the masked password
+// bullets/dots — dark and clearly visible (without it the text inherits an
+// undefined/light color, so typing looked invisible).
 const fieldClass =
-  'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none';
+  'w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-amber-500 focus:outline-none';
 
 interface FieldErrors {
   current?: string;
