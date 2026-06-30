@@ -95,6 +95,27 @@ describe('Change password — show/hide toggles', () => {
     expect(within(dialog).getAllByRole('button', { name: 'הצג סיסמה' })).toHaveLength(3);
   });
 
+  it('renders exactly one show/hide control per field', async () => {
+    const dialog = await openDialog();
+    for (const label of ['סיסמה נוכחית', 'סיסמה חדשה', 'אימות סיסמה חדשה']) {
+      const input = within(dialog).getByLabelText(label);
+      const container = input.parentElement as HTMLElement;
+      expect(within(container).getAllByRole('button')).toHaveLength(1);
+    }
+  });
+
+  it('uses plain SVG icons, not emoji', async () => {
+    const dialog = await openDialog();
+    const text = dialog.textContent ?? '';
+    // None of the previous emoji glyphs are rendered anywhere in the dialog…
+    expect(text).not.toContain('\u{1F648}'); // 🙈
+    expect(text).not.toContain('\u{1F441}'); // 👁
+    expect(text).not.toContain('\u{FE0F}'); // emoji variation selector
+    // …and each toggle renders an inline <svg> icon instead.
+    const toggle = within(dialog).getAllByRole('button', { name: 'הצג סיסמה' })[0];
+    expect(toggle.querySelector('svg')).toBeInTheDocument();
+  });
+
   it('toggles only the clicked field from password to text and back', async () => {
     const dialog = await openDialog();
     const current = within(dialog).getByLabelText('סיסמה נוכחית');
