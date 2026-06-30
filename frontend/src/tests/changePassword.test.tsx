@@ -29,9 +29,12 @@ function renderHeader(role = 'Manager') {
   );
 }
 
+// The change-password entry point now lives inside the header user menu: open
+// the menu, then click the "החלפת סיסמה" item.
 async function openDialog(role = 'Manager') {
   renderHeader(role);
-  await userEvent.click(screen.getByRole('button', { name: 'החלפת סיסמה' }));
+  await userEvent.click(screen.getByRole('button', { name: 'תפריט משתמש' }));
+  await userEvent.click(screen.getByRole('menuitem', { name: 'החלפת סיסמה' }));
   return screen.getByRole('dialog', { name: 'החלפת סיסמה' });
 }
 
@@ -41,10 +44,13 @@ beforeEach(() => {
 
 describe('Change password — entry point', () => {
   it.each(['Manager', 'Secretary', 'Mechanic'])(
-    'renders the "החלפת סיסמה" entry point for %s',
-    (role) => {
+    'exposes the "החלפת סיסמה" entry point via the user menu for %s',
+    async (role) => {
       renderHeader(role);
-      expect(screen.getByRole('button', { name: 'החלפת סיסמה' })).toBeInTheDocument();
+      // Not a standalone header button — it is inside the user menu.
+      expect(screen.queryByRole('button', { name: 'החלפת סיסמה' })).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'תפריט משתמש' }));
+      expect(screen.getByRole('menuitem', { name: 'החלפת סיסמה' })).toBeInTheDocument();
     }
   );
 
@@ -54,7 +60,8 @@ describe('Change password — entry point', () => {
         <Header />
       </MemoryRouter>
     );
-    expect(screen.queryByRole('button', { name: 'החלפת סיסמה' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'תפריט משתמש' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'החלפת סיסמה' })).not.toBeInTheDocument();
   });
 
   it('opens the modal when the entry point is clicked', async () => {

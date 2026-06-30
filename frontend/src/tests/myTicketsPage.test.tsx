@@ -107,10 +107,13 @@ describe('MyTicketsPage — rendering & data source', () => {
     expect(screen.queryByText('33-333-33')).not.toBeInTheDocument();
   });
 
-  it('shows a Hebrew archive/closed label on archived tickets', async () => {
+  it('shows "בארכיון" and not the "הושלם" status on archive cards', async () => {
     renderPage();
     const card = (await screen.findByText('11-111-11')).closest('article')!;
+    // Archive cards surface only "בארכיון" — the "הושלם" status pill is dropped
+    // since every archived ticket is already closed.
     expect(within(card).getByText(/בארכיון/)).toBeInTheDocument();
+    expect(within(card).queryByText('הושלם')).not.toBeInTheDocument();
   });
 
   it('shows useful ticket details (customer, mechanic, description)', async () => {

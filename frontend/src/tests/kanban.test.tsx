@@ -135,6 +135,14 @@ describe('KanbanBoard — layout', () => {
     expect(within(card).getByText('מכונאי: דוד')).toBeInTheDocument();
     expect(within(card).getByText('ממתין לטיפול')).toBeInTheDocument();
   });
+
+  it('still shows the "הושלם" status badge on a Completed card (Work Board, unlike the archive)', async () => {
+    renderBoard(makeUser('Manager'));
+    await screen.findByRole('region', { name: 'הושלם' });
+
+    const completedCard = within(region('הושלם')).getByText('33-333-33').closest('article')!;
+    expect(within(completedCard).getByText('הושלם')).toBeInTheDocument();
+  });
 });
 
 describe('KanbanBoard — status filter', () => {
