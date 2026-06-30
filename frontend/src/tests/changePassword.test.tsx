@@ -84,6 +84,46 @@ describe('Change password — entry point', () => {
   });
 });
 
+describe('Change password — show/hide toggles', () => {
+  // The toggle button lives in the same container as its input.
+  const toggleFor = (input: HTMLElement, name: 'הצג סיסמה' | 'הסתר סיסמה') =>
+    within(input.parentElement as HTMLElement).getByRole('button', { name });
+
+  it('renders a persistent show control for each field, visible before typing', async () => {
+    const dialog = await openDialog();
+    // All three eye buttons are present immediately, with the fields still empty.
+    expect(within(dialog).getAllByRole('button', { name: 'הצג סיסמה' })).toHaveLength(3);
+  });
+
+  it('toggles only the clicked field from password to text and back', async () => {
+    const dialog = await openDialog();
+    const current = within(dialog).getByLabelText('סיסמה נוכחית');
+    const next = within(dialog).getByLabelText('סיסמה חדשה');
+    const confirm = within(dialog).getByLabelText('אימות סיסמה חדשה');
+
+    await userEvent.click(toggleFor(current, 'הצג סיסמה'));
+
+    // Only the current-password field reveals; the others stay masked.
+    expect(current).toHaveAttribute('type', 'text');
+    expect(next).toHaveAttribute('type', 'password');
+    expect(confirm).toHaveAttribute('type', 'password');
+
+    // Clicking again re-masks that same field.
+    await userEvent.click(toggleFor(current, 'הסתר סיסמה'));
+    expect(current).toHaveAttribute('type', 'password');
+  });
+
+  it('does not submit the form when a toggle is clicked', async () => {
+    const dialog = await openDialog();
+    const current = within(dialog).getByLabelText('סיסמה נוכחית');
+
+    await userEvent.click(toggleFor(current, 'הצג סיסמה'));
+
+    // type="button" → no submit, so the API is never called.
+    expect(changePassword).not.toHaveBeenCalled();
+  });
+});
+
 describe('Change password — validation', () => {
   it('blocks submit and shows required-field messages when empty', async () => {
     const dialog = await openDialog();
