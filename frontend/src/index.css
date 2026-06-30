@@ -15,3 +15,19 @@ body {
 #root {
   min-height: 100vh;
 }
+
+/* Hide the browser's built-in password reveal/clear controls (Edge ::-ms-reveal
+   and the WebKit caps-lock/reveal decorations) so they never appear alongside
+   our own custom show/hide eye button — otherwise password fields would show two
+   reveal icons. */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
+input::-webkit-credentials-auto-fill-button,
+input::-webkit-strong-password-auto-fill-button {
+  display: none !important;
+  visibility: hidden;
+  pointer-events: none;
+}

@@ -9,8 +9,14 @@ import {
   SCOPE_LABELS,
   type ArchiveScope,
 } from '../utils/myTickets';
-import MyTicketsFilters, { type StatusFilter } from '../components/MyTicketsFilters';
+import {
+  buildDateRangeParams,
+  validateDateRange,
+  type DateRange,
+} from '../utils/dateRange';
+import MyTicketsFilters from '../components/MyTicketsFilters';
 import MyTicketsList from '../components/MyTicketsList';
+import DateRangeFilter from '../components/DateRangeFilter';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 
@@ -24,7 +30,9 @@ import ErrorMessage from '../components/ErrorMessage';
 //   • Secretary — the garage archive (all archived tickets the backend returns).
 //   • Manager   — toggles between "הארכיון שלי" (assigned to them) and
 //                 "ארכיון המוסך" (all archived tickets).
-// The page is read-only: there are no edit/advance/close actions here.
+// An optional date range (by the ticket's open/creation date — that is what the
+// backend filters on) narrows the archive server-side. The page is read-only:
+// there are no edit/advance/close actions here.
 export default function MyTicketsPage() {
   const { user } = useAuth();
 
@@ -33,7 +41,11 @@ export default function MyTicketsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  // Draft date inputs vs. the applied range (what the loaded archive reflects).
+  const [startInput, setStartInput] = useState('');
+  const [endInput, setEndInput] = useState('');
+  const [appliedRange, setAppliedRange] = useState<DateRange>({});
+  const [rangeError, setRangeError] = useState<string | null>(null);
   // The archive scope currently shown. Initialised to the role's default; only
   // Managers can switch it (they have both scopes available).
   const [scope, setScope] = useState<ArchiveScope>(() =>
@@ -41,16 +53,17 @@ export default function MyTicketsPage() {
   );
 
   // Fetches the archive (archived_at != null) and folds it into state. The
-  // backend does the archive filtering (archived_only=true) and Mechanic
-  // scoping; filterArchive still applies defensively client-side. State is only
-  // touched asynchronously, so this is safe to call from an effect.
+  // backend does the archive filtering (archived_only=true), the date-range
+  // filtering and Mechanic scoping; filterArchive still applies defensively
+  // client-side. State is only touched asynchronously, so this is safe to call
+  // from an effect.
   const fetchTickets = useCallback(
     () =>
-      listTickets({ archived_only: true })
+      listTickets({ archived_only: true, ...appliedRange })
         .then(setTickets)
         .catch(() => setError('שגיאה בטעינת הכרטיסים. נסה שוב.'))
         .finally(() => setLoading(false)),
-    []
+    [appliedRange]
   );
 
   useEffect(() => {
@@ -64,6 +77,17 @@ export default function MyTicketsPage() {
     fetchTickets();
   }, [fetchTickets]);
 
+  // Apply the date range. Invalid ranges (start after end) show a Hebrew error
+  // and never call the API; a valid range re-fetches via the effect.
+  const applyRange = useCallback(() => {
+    const err = validateDateRange(startInput, endInput);
+    setRangeError(err);
+    if (err) return;
+    setLoading(true);
+    setError(null);
+    setAppliedRange(buildDateRangeParams(startInput, endInput));
+  }, [startInput, endInput]);
+
   const availableScopes = user ? scopesForRole(user.role) : [];
 
   // The archived tickets visible in the currently selected scope.
@@ -72,15 +96,13 @@ export default function MyTicketsPage() {
     [tickets, user, scope]
   );
 
-  // Apply the search (by license plate) and optional status filter within scope.
+  // Apply the license-plate search within scope (the status filter was removed —
+  // the archive holds only closed tickets and is filtered by date instead).
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return archived.filter((ticket) => {
-      if (statusFilter !== 'all' && ticket.status !== statusFilter) return false;
-      if (query && !ticket.license_plate.toLowerCase().includes(query)) return false;
-      return true;
-    });
-  }, [archived, search, statusFilter]);
+    if (!query) return archived;
+    return archived.filter((ticket) => ticket.license_plate.toLowerCase().includes(query));
+  }, [archived, search]);
 
   if (!user) return null;
 
@@ -90,9 +112,6 @@ export default function MyTicketsPage() {
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="text-2xl font-bold text-gray-800">ארכיון כרטיסים</h1>
-        <p className="text-sm text-gray-500">
-          כרטיסים סגורים שנשמרו בהיסטוריה. כרטיסים פעילים מופיעים בלוח העבודה.
-        </p>
       </div>
 
       {/* Manager-only scope tabs: personal archive vs. garage-wide archive. */}
@@ -118,18 +137,23 @@ export default function MyTicketsPage() {
         </div>
       )}
 
+      <DateRangeFilter
+        idPrefix="archive-range"
+        start={startInput}
+        end={endInput}
+        onStartChange={setStartInput}
+        onEndChange={setEndInput}
+        onApply={applyRange}
+        error={rangeError}
+      />
+
       {loading && <LoadingSpinner message="טוען כרטיסים..." />}
 
       {error && !loading && <ErrorMessage message={error} onRetry={reload} />}
 
       {!loading && !error && (
         <>
-          <MyTicketsFilters
-            search={search}
-            onSearchChange={setSearch}
-            status={statusFilter}
-            onStatusChange={setStatusFilter}
-          />
+          <MyTicketsFilters search={search} onSearchChange={setSearch} />
 
           {archived.length === 0 ? (
             <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-500">

@@ -176,7 +176,6 @@ export default function UsersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">ניהול משתמשים</h1>
-          <p className="text-sm text-gray-500">הוספה, עריכה והשבתת משתמשי המערכת.</p>
         </div>
         <button
           type="button"

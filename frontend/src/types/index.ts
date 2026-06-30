@@ -180,6 +180,23 @@ export interface KanbanTicket {
   archived_at?: string | null;
 }
 
+// One part consumed by a ticket, as returned in `parts_used` by
+// GET /api/tickets/{id} (backend follow-up). `quantity_used` is how many of the
+// part the ticket deducted from stock.
+export interface UsedPart {
+  part_id: number;
+  part_name: string;
+  part_code: string;
+  quantity_used: number;
+}
+
+// GET /api/tickets/{id} — a single ticket with its full details, including the
+// parts it used. Extends the denormalised list shape with `parts_used` so the
+// Work Board details modal can show everything in one read-only view.
+export interface TicketDetail extends KanbanTicket {
+  parts_used: UsedPart[];
+}
+
 // Standard paginated envelope used by all list endpoints (TDD §7).
 export interface Paginated<T> {
   items: T[];

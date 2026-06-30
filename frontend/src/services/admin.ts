@@ -5,6 +5,7 @@ import type {
   TicketsByDayRow,
   TicketsSummary,
 } from '../types';
+import type { DateRange } from '../utils/dateRange';
 
 // Admin / dashboard service — wraps the Manager-only endpoints under
 // /api/admin (TDD §4.6). Every route is guarded by require_roles("Manager") on
@@ -13,8 +14,13 @@ import type {
 // are propagated so callers can show a Hebrew error/unavailable state.
 
 // GET /api/admin/tickets/summary — counts per status + average completion time.
-export async function getTicketsSummary(): Promise<TicketsSummary> {
-  const { data } = await apiClient.get<TicketsSummary>('/admin/tickets/summary');
+// Accepts an optional start_date/end_date range (the dashboard date filter). The
+// backend still returns avg_completion_minutes, but the dashboard no longer
+// displays it.
+export async function getTicketsSummary(range: DateRange = {}): Promise<TicketsSummary> {
+  const { data } = await apiClient.get<TicketsSummary>('/admin/tickets/summary', {
+    params: range,
+  });
   return data;
 }
 
@@ -24,24 +30,25 @@ export async function getEmployees(): Promise<EmployeeMonitorRow[]> {
   return data;
 }
 
-interface ByDayParams {
-  start_date?: string;
-  end_date?: string;
-}
-
 // GET /api/admin/tickets/by-day — per-day created/completed counts and average
 // handling time. Without a range the backend defaults to the last 30 days.
-export async function getTicketsByDay(params: ByDayParams = {}): Promise<TicketsByDayRow[]> {
-  const { data } = await apiClient.get<TicketsByDayRow[]>('/admin/tickets/by-day', { params });
+export async function getTicketsByDay(range: DateRange = {}): Promise<TicketsByDayRow[]> {
+  const { data } = await apiClient.get<TicketsByDayRow[]>('/admin/tickets/by-day', {
+    params: range,
+  });
   return data;
 }
 
 // GET /api/admin/reports/performance?mechanic_id=... — quality metrics for one
 // mechanic. The backend has no bulk endpoint, so the dashboard calls this once
-// per assignable employee to build the performance cards.
-export async function getPerformance(mechanicId: number): Promise<PerformanceReport> {
+// per assignable employee to build the performance cards. Accepts an optional
+// date range (the dashboard date filter) that scopes the metrics.
+export async function getPerformance(
+  mechanicId: number,
+  range: DateRange = {}
+): Promise<PerformanceReport> {
   const { data } = await apiClient.get<PerformanceReport>('/admin/reports/performance', {
-    params: { mechanic_id: mechanicId },
+    params: { mechanic_id: mechanicId, ...range },
   });
   return data;
 }

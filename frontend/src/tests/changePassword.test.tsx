@@ -29,9 +29,12 @@ function renderHeader(role = 'Manager') {
   );
 }
 
+// The change-password entry point now lives inside the header user menu: open
+// the menu, then click the "החלפת סיסמה" item.
 async function openDialog(role = 'Manager') {
   renderHeader(role);
-  await userEvent.click(screen.getByRole('button', { name: 'החלפת סיסמה' }));
+  await userEvent.click(screen.getByRole('button', { name: 'תפריט משתמש' }));
+  await userEvent.click(screen.getByRole('menuitem', { name: 'החלפת סיסמה' }));
   return screen.getByRole('dialog', { name: 'החלפת סיסמה' });
 }
 
@@ -41,10 +44,13 @@ beforeEach(() => {
 
 describe('Change password — entry point', () => {
   it.each(['Manager', 'Secretary', 'Mechanic'])(
-    'renders the "החלפת סיסמה" entry point for %s',
-    (role) => {
+    'exposes the "החלפת סיסמה" entry point via the user menu for %s',
+    async (role) => {
       renderHeader(role);
-      expect(screen.getByRole('button', { name: 'החלפת סיסמה' })).toBeInTheDocument();
+      // Not a standalone header button — it is inside the user menu.
+      expect(screen.queryByRole('button', { name: 'החלפת סיסמה' })).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'תפריט משתמש' }));
+      expect(screen.getByRole('menuitem', { name: 'החלפת סיסמה' })).toBeInTheDocument();
     }
   );
 
@@ -54,7 +60,8 @@ describe('Change password — entry point', () => {
         <Header />
       </MemoryRouter>
     );
-    expect(screen.queryByRole('button', { name: 'החלפת סיסמה' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'תפריט משתמש' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'החלפת סיסמה' })).not.toBeInTheDocument();
   });
 
   it('opens the modal when the entry point is clicked', async () => {
@@ -63,6 +70,78 @@ describe('Change password — entry point', () => {
     expect(within(dialog).getByLabelText('סיסמה נוכחית')).toBeInTheDocument();
     expect(within(dialog).getByLabelText('סיסמה חדשה')).toBeInTheDocument();
     expect(within(dialog).getByLabelText('אימות סיסמה חדשה')).toBeInTheDocument();
+  });
+
+  it('renders masked password fields with a visibly dark text color', async () => {
+    const dialog = await openDialog();
+    for (const label of ['סיסמה נוכחית', 'סיסמה חדשה', 'אימות סיסמה חדשה']) {
+      const input = within(dialog).getByLabelText(label);
+      // Stays masked (never plain text)…
+      expect(input).toHaveAttribute('type', 'password');
+      // …and the typed value/bullets are dark enough to actually see.
+      expect(input).toHaveClass('text-gray-900');
+    }
+  });
+});
+
+describe('Change password — show/hide toggles', () => {
+  // The toggle button lives in the same container as its input.
+  const toggleFor = (input: HTMLElement, name: 'הצג סיסמה' | 'הסתר סיסמה') =>
+    within(input.parentElement as HTMLElement).getByRole('button', { name });
+
+  it('renders a persistent show control for each field, visible before typing', async () => {
+    const dialog = await openDialog();
+    // All three eye buttons are present immediately, with the fields still empty.
+    expect(within(dialog).getAllByRole('button', { name: 'הצג סיסמה' })).toHaveLength(3);
+  });
+
+  it('renders exactly one show/hide control per field', async () => {
+    const dialog = await openDialog();
+    for (const label of ['סיסמה נוכחית', 'סיסמה חדשה', 'אימות סיסמה חדשה']) {
+      const input = within(dialog).getByLabelText(label);
+      const container = input.parentElement as HTMLElement;
+      expect(within(container).getAllByRole('button')).toHaveLength(1);
+    }
+  });
+
+  it('uses plain SVG icons, not emoji', async () => {
+    const dialog = await openDialog();
+    const text = dialog.textContent ?? '';
+    // None of the previous emoji glyphs are rendered anywhere in the dialog…
+    expect(text).not.toContain('\u{1F648}'); // 🙈
+    expect(text).not.toContain('\u{1F441}'); // 👁
+    expect(text).not.toContain('\u{FE0F}'); // emoji variation selector
+    // …and each toggle renders an inline <svg> icon instead.
+    const toggle = within(dialog).getAllByRole('button', { name: 'הצג סיסמה' })[0];
+    expect(toggle.querySelector('svg')).toBeInTheDocument();
+  });
+
+  it('toggles only the clicked field from password to text and back', async () => {
+    const dialog = await openDialog();
+    const current = within(dialog).getByLabelText('סיסמה נוכחית');
+    const next = within(dialog).getByLabelText('סיסמה חדשה');
+    const confirm = within(dialog).getByLabelText('אימות סיסמה חדשה');
+
+    await userEvent.click(toggleFor(current, 'הצג סיסמה'));
+
+    // Only the current-password field reveals; the others stay masked.
+    expect(current).toHaveAttribute('type', 'text');
+    expect(next).toHaveAttribute('type', 'password');
+    expect(confirm).toHaveAttribute('type', 'password');
+
+    // Clicking again re-masks that same field.
+    await userEvent.click(toggleFor(current, 'הסתר סיסמה'));
+    expect(current).toHaveAttribute('type', 'password');
+  });
+
+  it('does not submit the form when a toggle is clicked', async () => {
+    const dialog = await openDialog();
+    const current = within(dialog).getByLabelText('סיסמה נוכחית');
+
+    await userEvent.click(toggleFor(current, 'הצג סיסמה'));
+
+    // type="button" → no submit, so the API is never called.
+    expect(changePassword).not.toHaveBeenCalled();
   });
 });
 

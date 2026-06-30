@@ -1,5 +1,4 @@
 import type { PerformanceReport } from '../types';
-import { formatMinutes } from '../utils/duration';
 
 interface Props {
   reports: PerformanceReport[];
@@ -10,8 +9,11 @@ interface Props {
 
 // Quality-oriented performance cards, one per mechanic (FR-6.5 / TDD §4.6
 // GET /api/admin/reports/performance). The backend does not model ticket
-// difficulty or a quality score, so the cards expose the throughput/time metrics
-// that can actually be computed from stored data.
+// difficulty or a quality score, so the cards expose the throughput metrics that
+// can actually be computed from stored data. The average time per ticket
+// (avg_time_per_ticket_minutes) is intentionally NOT displayed: the dashboard no
+// longer shows any average-time metric (product decision). The backend field is
+// still returned and left untouched.
 export default function PerformanceReportCards({ reports, unavailable = false }: Props) {
   return (
     <section className="flex flex-col gap-3" aria-label="דוחות ביצועים">
@@ -44,12 +46,6 @@ export default function PerformanceReportCards({ reports, unavailable = false }:
                 <div className="flex justify-between">
                   <dt className="text-gray-500">שעות עבודה</dt>
                   <dd className="font-semibold text-gray-800">{report.total_work_hours}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-gray-500">זמן ממוצע לקריאה</dt>
-                  <dd className="font-semibold text-gray-800">
-                    {formatMinutes(report.avg_time_per_ticket_minutes)}
-                  </dd>
                 </div>
               </dl>
             </div>

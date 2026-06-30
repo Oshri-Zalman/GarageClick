@@ -1,6 +1,5 @@
 import type { KanbanTicket } from '../types';
 import { formatDateTime } from '../utils/myTickets';
-import StatusBadge from './StatusBadge';
 import TicketHistoryStatusBadge from './TicketHistoryStatusBadge';
 
 interface Props {
@@ -15,10 +14,9 @@ export default function MyTicketCard({ ticket }: Props) {
     <article className="rounded-xl border border-amber-100 bg-white p-4 shadow-sm">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <span className="text-lg font-bold text-gray-900">{ticket.license_plate}</span>
-        <div className="flex items-center gap-2">
-          <StatusBadge status={ticket.status} />
-          <TicketHistoryStatusBadge />
-        </div>
+        {/* Archive cards show only "בארכיון" — the underlying "הושלם" status is
+            implied (every archived ticket is closed) and would be redundant. */}
+        <TicketHistoryStatusBadge />
       </div>
 
       <p className="mb-3 text-sm text-gray-700">{ticket.description}</p>

@@ -1,5 +1,4 @@
 import type { TicketsByDayRow } from '../types';
-import { formatMinutes } from '../utils/duration';
 
 interface Props {
   rows: TicketsByDayRow[];
@@ -31,7 +30,6 @@ export default function TicketsByDaySummary({ rows, unavailable = false }: Props
                 <th scope="col" className="px-4 py-2 font-semibold">תאריך</th>
                 <th scope="col" className="px-4 py-2 font-semibold">נפתחו</th>
                 <th scope="col" className="px-4 py-2 font-semibold">הושלמו</th>
-                <th scope="col" className="px-4 py-2 font-semibold">זמן טיפול ממוצע</th>
               </tr>
             </thead>
             <tbody>
@@ -40,9 +38,6 @@ export default function TicketsByDaySummary({ rows, unavailable = false }: Props
                   <td className="px-4 py-2 text-gray-800">{row.date}</td>
                   <td className="px-4 py-2 text-gray-800">{row.tickets_created}</td>
                   <td className="px-4 py-2 text-gray-800">{row.tickets_completed}</td>
-                  <td className="px-4 py-2 text-gray-600">
-                    {formatMinutes(row.avg_completion_minutes)}
-                  </td>
                 </tr>
               ))}
             </tbody>
