@@ -111,12 +111,18 @@ export default function TicketDetailsModal({ ticketId, onClose }: Props) {
               <Detail label="מספר כרטיס" value={ticket.ticket_number} />
               <Detail label="לקוח" value={ticket.customer_name} />
               <Detail label="מכונאי מטפל" value={ticket.mechanic_name ?? 'לא משויך'} />
-              <Detail label="נפתח בתאריך" value={formatDateTime(ticket.created_at)} />
+            </dl>
+
+            {/* Dates: label on its own line with the date + time together below
+                it, so the timestamp reads cleanly instead of being squeezed
+                inline. */}
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm text-gray-600 sm:grid-cols-2">
+              <DateDetail label="נפתח בתאריך" value={formatDateTime(ticket.created_at)} />
               {ticket.completed_at && (
-                <Detail label="הושלם בתאריך" value={formatDateTime(ticket.completed_at)} />
+                <DateDetail label="הושלם בתאריך" value={formatDateTime(ticket.completed_at)} />
               )}
               {ticket.archived_at && (
-                <Detail label="נסגר בתאריך" value={formatDateTime(ticket.archived_at)} />
+                <DateDetail label="נסגר בתאריך" value={formatDateTime(ticket.archived_at)} />
               )}
             </dl>
 
@@ -155,6 +161,17 @@ function Detail({ label, value }: { label: string; value: string }) {
     <div className="flex items-center gap-1.5">
       <dt className="font-semibold text-gray-600">{label}:</dt>
       <dd className="text-gray-700">{value}</dd>
+    </div>
+  );
+}
+
+// A date field: the label sits on its own line with the date + time (a single
+// string, kept together) on the line below. RTL is inherited from the modal.
+function DateDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col">
+      <dt className="font-semibold text-gray-600">{label}</dt>
+      <dd className="whitespace-nowrap text-gray-700">{value}</dd>
     </div>
   );
 }

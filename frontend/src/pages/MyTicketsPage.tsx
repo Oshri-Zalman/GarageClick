@@ -112,9 +112,6 @@ export default function MyTicketsPage() {
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="text-2xl font-bold text-gray-800">ארכיון כרטיסים</h1>
-        <p className="text-sm text-gray-500">
-          כרטיסים סגורים שנשמרו בהיסטוריה. כרטיסים פעילים מופיעים בלוח העבודה.
-        </p>
       </div>
 
       {/* Manager-only scope tabs: personal archive vs. garage-wide archive. */}
@@ -142,7 +139,6 @@ export default function MyTicketsPage() {
 
       <DateRangeFilter
         idPrefix="archive-range"
-        label="טווח תאריכים — תאריך פתיחת הכרטיס"
         start={startInput}
         end={endInput}
         onStartChange={setStartInput}

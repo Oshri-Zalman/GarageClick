@@ -301,6 +301,22 @@ describe('KanbanBoard — ticket details modal (double-click)', () => {
     expect(within(dialog).getByText('× 2')).toBeInTheDocument();
   });
 
+  it('shows the opened date with the time together on one line, under its label', async () => {
+    vi.mocked(getTicket).mockResolvedValue(DETAIL);
+    renderBoard(makeUser('Manager'));
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
+
+    await userEvent.dblClick(within(region('ממתין לטיפול')).getByText('11-111-11'));
+    const dialog = await screen.findByRole('dialog');
+
+    // The label is its own element…
+    expect(within(dialog).getByText('נפתח בתאריך')).toBeInTheDocument();
+    // …and the date + time render together in a single element (DD/MM/YYYY HH:mm).
+    expect(
+      within(dialog).getByText((content) => /\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/.test(content))
+    ).toBeInTheDocument();
+  });
+
   it('double-clicking an action button does NOT open the details modal', async () => {
     vi.mocked(updateTicketStatus).mockResolvedValue(
       makeTicket({ id: 1, status: 'In Progress', license_plate: '11-111-11' })
