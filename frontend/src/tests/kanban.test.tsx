@@ -8,10 +8,11 @@ vi.mock('../services/tickets', () => ({
   listTickets: vi.fn(),
   updateTicketStatus: vi.fn(),
   archiveTicket: vi.fn(),
+  getTicket: vi.fn(),
 }));
 
 import { AxiosError } from 'axios';
-import { listTickets, updateTicketStatus, archiveTicket } from '../services/tickets';
+import { listTickets, updateTicketStatus, archiveTicket, getTicket } from '../services/tickets';
 
 function axiosError(detail: string): AxiosError {
   const err = new AxiosError('request failed');
@@ -273,6 +274,85 @@ describe('KanbanBoard — archive (close) completed tickets', () => {
 
     await userEvent.click(within(region('הושלם')).getByRole('button', { name: 'סגור כרטיס' }));
     expect(archiveTicket).toHaveBeenCalledWith(3);
+  });
+});
+
+describe('KanbanBoard — ticket details modal (double-click)', () => {
+  const DETAIL = {
+    ...T_PENDING,
+    parts_used: [
+      { part_id: 1, part_name: 'בלמים', part_code: 'BRK001', quantity_used: 2 },
+    ],
+  };
+
+  it('double-clicking a card fetches GET /api/tickets/{id} and opens the details modal', async () => {
+    vi.mocked(getTicket).mockResolvedValue(DETAIL);
+    renderBoard(makeUser('Manager'));
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
+
+    const card = within(region('ממתין לטיפול')).getByText('11-111-11').closest('article')!;
+    await userEvent.dblClick(card);
+
+    expect(getTicket).toHaveBeenCalledWith(1);
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('תיאור')).toBeInTheDocument();
+    // parts_used list is shown.
+    expect(within(dialog).getByText(/בלמים/)).toBeInTheDocument();
+    expect(within(dialog).getByText('× 2')).toBeInTheDocument();
+  });
+
+  it('shows "ללא חלפים" when the ticket used no parts', async () => {
+    vi.mocked(getTicket).mockResolvedValue({ ...T_PENDING, parts_used: [] });
+    renderBoard(makeUser('Manager'));
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
+
+    const card = within(region('ממתין לטיפול')).getByText('11-111-11').closest('article')!;
+    await userEvent.dblClick(card);
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('ללא חלפים')).toBeInTheDocument();
+  });
+
+  it('can be closed', async () => {
+    vi.mocked(getTicket).mockResolvedValue({ ...T_PENDING, parts_used: [] });
+    renderBoard(makeUser('Manager'));
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
+
+    const card = within(region('ממתין לטיפול')).getByText('11-111-11').closest('article')!;
+    await userEvent.dblClick(card);
+
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'סגירה' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('shows a Hebrew error with retry when the fetch fails', async () => {
+    vi.mocked(getTicket).mockRejectedValueOnce(new Error('500'));
+    renderBoard(makeUser('Manager'));
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
+
+    const card = within(region('ממתין לטיפול')).getByText('11-111-11').closest('article')!;
+    await userEvent.dblClick(card);
+
+    expect(await screen.findByText('שגיאה בטעינת פרטי הכרטיס. נסה שוב.')).toBeInTheDocument();
+
+    vi.mocked(getTicket).mockResolvedValueOnce({ ...T_PENDING, parts_used: [] });
+    await userEvent.click(screen.getByRole('button', { name: 'נסה שוב' }));
+    expect(await screen.findByText('ללא חלפים')).toBeInTheDocument();
+  });
+
+  it('does not break single-click status actions', async () => {
+    vi.mocked(updateTicketStatus).mockResolvedValue(
+      makeTicket({ id: 1, status: 'In Progress', license_plate: '11-111-11' })
+    );
+    renderBoard(makeUser('Mechanic', MECHANIC_DAVID_ID));
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
+
+    // A normal single click on the action button still advances the ticket and
+    // never opens the details modal.
+    await userEvent.click(screen.getByRole('button', { name: 'התחל טיפול' }));
+    expect(updateTicketStatus).toHaveBeenCalledWith(1, 'In Progress', false);
+    expect(getTicket).not.toHaveBeenCalled();
   });
 });
 

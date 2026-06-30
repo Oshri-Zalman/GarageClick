@@ -12,8 +12,14 @@ import type {
   TicketsSummary,
 } from '../types';
 import { apiErrorMessage } from '../utils/apiErrors';
+import {
+  buildDateRangeParams,
+  validateDateRange,
+  type DateRange,
+} from '../utils/dateRange';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
+import DateRangeFilter from './DateRangeFilter';
 import TicketStatusSummary from './TicketStatusSummary';
 import EmployeeMonitoringTable from './EmployeeMonitoringTable';
 import TicketsByDaySummary from './TicketsByDaySummary';
@@ -36,11 +42,15 @@ interface ManagerData {
 // Gathers every manager dataset (FR-6). Kept as a pure async function outside the
 // component so it performs no setState itself — the caller applies the result in a
 // `.then` callback, keeping all state updates off the synchronous effect path.
-async function gatherManagerData(): Promise<ManagerData> {
+// The chosen date range is applied to the status summary, tickets-by-day and the
+// per-mechanic performance reports. It is intentionally NOT applied to employee
+// monitoring (ניטור עובדים) — GET /api/admin/employees has no date support and
+// always reflects the current team state.
+async function gatherManagerData(range: DateRange): Promise<ManagerData> {
   const [summaryRes, employeesRes, byDayRes] = await Promise.allSettled([
-    getTicketsSummary(),
+    getTicketsSummary(range),
     getEmployees(),
-    getTicketsByDay(),
+    getTicketsByDay(range),
   ]);
 
   // Status summary is the core of the page — if it fails, surface a retryable
@@ -66,7 +76,7 @@ async function gatherManagerData(): Promise<ManagerData> {
     const assignable = employeesRes.value.filter(
       (e) => e.role === 'Mechanic' || e.role === 'Manager'
     );
-    const results = await Promise.allSettled(assignable.map((e) => getPerformance(e.id)));
+    const results = await Promise.allSettled(assignable.map((e) => getPerformance(e.id, range)));
     performance = results
       .filter((r): r is PromiseFulfilledResult<PerformanceReport> => r.status === 'fulfilled')
       .map((r) => r.value);
@@ -91,7 +101,8 @@ async function gatherManagerData(): Promise<ManagerData> {
 // The full Manager dashboard (FR-6): status summary, employee monitoring,
 // tickets-by-day and per-mechanic performance cards. A hard error (the status
 // summary itself failed) shows a full retry state; individual section failures
-// degrade to a Hebrew "unavailable" state for that section only.
+// degrade to a Hebrew "unavailable" state for that section only. A date-range
+// filter scopes the summary/report sections (but not employee monitoring).
 export default function ManagerDashboard() {
   const [loading, setLoading] = useState(true);
   const [fatalError, setFatalError] = useState<string | null>(null);
@@ -104,11 +115,18 @@ export default function ManagerDashboard() {
   const [performance, setPerformance] = useState<PerformanceReport[]>([]);
   const [performanceUnavailable, setPerformanceUnavailable] = useState(false);
 
+  // Draft inputs (what the user is typing) vs. the applied range (what was last
+  // submitted and is reflected in the loaded data). Only "החל" promotes drafts.
+  const [startInput, setStartInput] = useState('');
+  const [endInput, setEndInput] = useState('');
+  const [appliedRange, setAppliedRange] = useState<DateRange>({});
+  const [rangeError, setRangeError] = useState<string | null>(null);
+
   // State is only ever touched inside the `.then` callback (asynchronously), so
   // this is safe to call straight from an effect without cascading renders.
   const fetchData = useCallback(
     () =>
-      gatherManagerData().then((data) => {
+      gatherManagerData(appliedRange).then((data) => {
         setSummary(data.summary);
         setFatalError(data.fatal);
         setEmployees(data.employees);
@@ -119,7 +137,7 @@ export default function ManagerDashboard() {
         setPerformanceUnavailable(data.performanceUnavailable);
         setLoading(false);
       }),
-    []
+    [appliedRange]
   );
 
   useEffect(() => {
@@ -133,21 +151,45 @@ export default function ManagerDashboard() {
     return fetchData();
   }, [fetchData]);
 
-  if (loading) return <LoadingSpinner message="טוען לוח בקרה..." />;
-  if (fatalError) return <ErrorMessage message={fatalError} onRetry={reload} />;
-  if (!summary) return null;
+  // Apply the date range. Invalid ranges (start after end) show a Hebrew error
+  // and never trigger an API call. A valid range updates appliedRange, which the
+  // effect picks up to re-fetch.
+  const applyRange = useCallback(() => {
+    const err = validateDateRange(startInput, endInput);
+    setRangeError(err);
+    if (err) return;
+    setLoading(true);
+    setAppliedRange(buildDateRangeParams(startInput, endInput));
+  }, [startInput, endInput]);
 
   return (
     <div className="flex flex-col gap-8">
-      <TicketStatusSummary
-        pending={summary.total_pending}
-        inProgress={summary.total_in_progress}
-        completed={summary.total_completed}
-        avgCompletionMinutes={summary.avg_completion_minutes}
+      <DateRangeFilter
+        idPrefix="manager-dashboard-range"
+        start={startInput}
+        end={endInput}
+        onStartChange={setStartInput}
+        onEndChange={setEndInput}
+        onApply={applyRange}
+        error={rangeError}
       />
-      <EmployeeMonitoringTable employees={employees} unavailable={employeesUnavailable} />
-      <TicketsByDaySummary rows={byDay} unavailable={byDayUnavailable} />
-      <PerformanceReportCards reports={performance} unavailable={performanceUnavailable} />
+
+      {loading ? (
+        <LoadingSpinner message="טוען לוח בקרה..." />
+      ) : fatalError ? (
+        <ErrorMessage message={fatalError} onRetry={reload} />
+      ) : summary ? (
+        <>
+          <TicketStatusSummary
+            pending={summary.total_pending}
+            inProgress={summary.total_in_progress}
+            completed={summary.total_completed}
+          />
+          <EmployeeMonitoringTable employees={employees} unavailable={employeesUnavailable} />
+          <TicketsByDaySummary rows={byDay} unavailable={byDayUnavailable} />
+          <PerformanceReportCards reports={performance} unavailable={performanceUnavailable} />
+        </>
+      ) : null}
     </div>
   );
 }

@@ -204,6 +204,93 @@ describe('PartsSelection — compatible parts in the ticket flow', () => {
   });
 });
 
+describe('PartsSelection — local search over loaded compatible parts', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getCompatibleParts).mockResolvedValue(PARTS);
+  });
+
+  it('filters the parts by Hebrew text', async () => {
+    renderExisting();
+    await screen.findByLabelText('בלמים דיסק קדמי');
+
+    await userEvent.type(screen.getByLabelText('חיפוש חלפים'), 'מסנן');
+
+    expect(screen.getByLabelText('מסנן שמן')).toBeInTheDocument();
+    expect(screen.queryByLabelText('בלמים דיסק קדמי')).not.toBeInTheDocument();
+  });
+
+  it('filters by English text case-insensitively (uppercase + lowercase)', async () => {
+    renderExisting();
+    await screen.findByLabelText('בלמים דיסק קדמי');
+
+    const box = screen.getByLabelText('חיפוש חלפים');
+    // lowercase query matches the uppercase part code BRK001.
+    await userEvent.type(box, 'brk');
+    expect(screen.getByLabelText('בלמים דיסק קדמי')).toBeInTheDocument();
+    expect(screen.queryByLabelText('מסנן שמן')).not.toBeInTheDocument();
+
+    // uppercase query matches the OIL002 code.
+    await userEvent.clear(box);
+    await userEvent.type(box, 'OIL');
+    expect(screen.getByLabelText('מסנן שמן')).toBeInTheDocument();
+    expect(screen.queryByLabelText('בלמים דיסק קדמי')).not.toBeInTheDocument();
+  });
+
+  it('filters by part code / numbers', async () => {
+    renderExisting();
+    await screen.findByLabelText('בלמים דיסק קדמי');
+
+    await userEvent.type(screen.getByLabelText('חיפוש חלפים'), '001');
+
+    expect(screen.getByLabelText('בלמים דיסק קדמי')).toBeInTheDocument();
+    expect(screen.queryByLabelText('מסנן שמן')).not.toBeInTheDocument();
+  });
+
+  it('clears the search input when a searched part is selected', async () => {
+    renderExisting();
+    await screen.findByLabelText('בלמים דיסק קדמי');
+
+    const box = screen.getByLabelText('חיפוש חלפים');
+    await userEvent.type(box, 'בלמים');
+    await userEvent.click(screen.getByLabelText('בלמים דיסק קדמי'));
+
+    expect(box).toHaveValue('');
+  });
+
+  it('keeps the selected part selected after the search clears', async () => {
+    renderExisting();
+    await screen.findByLabelText('בלמים דיסק קדמי');
+
+    await userEvent.type(screen.getByLabelText('חיפוש חלפים'), 'בלמים');
+    await userEvent.click(screen.getByLabelText('בלמים דיסק קדמי'));
+
+    // Search cleared → both parts visible again, and the chosen one stays checked.
+    expect(screen.getByLabelText('בלמים דיסק קדמי')).toBeChecked();
+    expect(screen.getByLabelText('מסנן שמן')).toBeInTheDocument();
+    expect(screen.getByTestId('selected-parts-summary')).toBeInTheDocument();
+  });
+
+  it('still offers "אחר / ללא חלפים" and keeps out-of-stock parts disabled', async () => {
+    renderExisting();
+    await screen.findByLabelText('בלמים דיסק קדמי');
+
+    // Out-of-stock part is disabled regardless of search.
+    expect(screen.getByLabelText('מסנן שמן')).toBeDisabled();
+    // "אחר / ללא חלפים" still works.
+    await userEvent.click(screen.getByLabelText('אחר / ללא חלפים'));
+    expect(screen.getByLabelText('אחר / ללא חלפים')).toBeChecked();
+  });
+
+  it('shows a Hebrew no-results message when the search matches nothing', async () => {
+    renderExisting();
+    await screen.findByLabelText('בלמים דיסק קדמי');
+
+    await userEvent.type(screen.getByLabelText('חיפוש חלפים'), 'zzzzz');
+    expect(screen.getByText('לא נמצאו חלפים התואמים את החיפוש.')).toBeInTheDocument();
+  });
+});
+
 describe('PartsSelection — reset on vehicle change (new-vehicle flow)', () => {
   beforeEach(() => {
     vi.clearAllMocks();

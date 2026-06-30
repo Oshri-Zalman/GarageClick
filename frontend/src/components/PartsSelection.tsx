@@ -81,10 +81,26 @@ export default function PartsSelection({
     result.status === 'error' ? 'שגיאה בטעינת החלפים התואמים. נסה שוב.' : null;
   const parts = result.status === 'ready' ? result.parts : [];
 
+  // Local search over the ALREADY-LOADED compatible parts (no extra request).
+  // Case-insensitive substring match on name/code/manufacturer/model, so it
+  // works with Hebrew, English (either case) and numbers (e.g. a part code).
+  const [search, setSearch] = useState('');
+  const query = search.trim().toLowerCase();
+  const visibleParts = query
+    ? parts.filter((p) =>
+        [p.part_name, p.part_code, p.manufacturer, p.model].some(
+          (field) => field != null && field.toLowerCase().includes(query)
+        )
+      )
+    : parts;
+
   const togglePart = (part: CompatiblePart, checked: boolean) => {
     const selected = { ...value.selected };
     if (checked) {
       selected[part.id] = 1;
+      // Selecting a part clears the search so the user can look up the next one;
+      // already-selected parts stay selected (they live in `value.selected`).
+      setSearch('');
     } else {
       delete selected[part.id];
     }
@@ -132,7 +148,24 @@ export default function PartsSelection({
             </p>
           )}
 
-          {parts.map((part) => {
+          {parts.length > 0 && (
+            <input
+              type="search"
+              aria-label="חיפוש חלפים"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="חיפוש לפי שם, מק״ט או יצרן"
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-400"
+            />
+          )}
+
+          {parts.length > 0 && visibleParts.length === 0 && (
+            <p className="text-sm text-gray-500" data-testid="no-search-results">
+              לא נמצאו חלפים התואמים את החיפוש.
+            </p>
+          )}
+
+          {visibleParts.map((part) => {
             const isSelected = part.id in value.selected;
             const disabled = !part.available || value.noParts;
             return (

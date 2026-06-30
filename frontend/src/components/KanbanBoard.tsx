@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { KanbanTicket, TicketStatus, User } from '../types';
-import { NEXT_STATUS, STATUS_LABELS, STATUS_ORDER } from '../config/ticketStatus';
+import {
+  NEXT_STATUS,
+  STATUS_FILTER_ACTIVE_STYLES,
+  STATUS_LABELS,
+  STATUS_ORDER,
+} from '../config/ticketStatus';
 import { archiveTicket, listTickets, updateTicketStatus } from '../services/tickets';
 import { apiErrorMessage } from '../utils/apiErrors';
 import KanbanColumn from './KanbanColumn';
 import ConfirmDialog from './ConfirmDialog';
+import TicketDetailsModal from './TicketDetailsModal';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
 
@@ -25,6 +31,8 @@ export default function KanbanBoard({ user }: Props) {
   const [archiveSuccess, setArchiveSuccess] = useState<string | null>(null);
   // The In Progress ticket awaiting an explicit "סיים טיפול" confirmation.
   const [confirming, setConfirming] = useState<KanbanTicket | null>(null);
+  // The ticket whose read-only details modal is open (opened by double-click).
+  const [detailsId, setDetailsId] = useState<number | null>(null);
 
   // Fetches tickets and folds the result into state. State is only ever touched
   // asynchronously (inside the promise callbacks), so this is safe to call from
@@ -181,9 +189,14 @@ export default function KanbanBoard({ user }: Props) {
               archivingId={archivingId}
               onAdvance={onAdvance}
               onArchive={onArchive}
+              onShowDetails={(ticket) => setDetailsId(ticket.id)}
             />
           ))}
         </div>
+      )}
+
+      {detailsId != null && (
+        <TicketDetailsModal ticketId={detailsId} onClose={() => setDetailsId(null)} />
       )}
 
       {confirming && (
@@ -204,9 +217,7 @@ export default function KanbanBoard({ user }: Props) {
 // warm accent.
 const ACTIVE_FILTER_STYLES: Record<Filter, string> = {
   all: 'bg-amber-600 text-white border border-amber-600',
-  Pending: 'bg-amber-100 text-amber-800 border border-amber-400',
-  'In Progress': 'bg-orange-200 text-orange-900 border border-orange-400',
-  Completed: 'bg-green-100 text-green-800 border border-green-400',
+  ...STATUS_FILTER_ACTIVE_STYLES,
 };
 
 const INACTIVE_FILTER_STYLE =

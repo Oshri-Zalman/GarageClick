@@ -23,7 +23,15 @@ describe('staff service', () => {
   it('reads the operational summary from GET /staff/tickets/summary', async () => {
     mockedGet.mockResolvedValueOnce({ data: SUMMARY });
     await expect(getStaffTicketsSummary()).resolves.toEqual(SUMMARY);
-    expect(mockedGet).toHaveBeenCalledWith('/staff/tickets/summary');
+    expect(mockedGet).toHaveBeenCalledWith('/staff/tickets/summary', { params: {} });
+  });
+
+  it('forwards the date range to GET /staff/tickets/summary', async () => {
+    mockedGet.mockResolvedValueOnce({ data: SUMMARY });
+    await getStaffTicketsSummary({ start_date: '2026-05-01', end_date: '2026-06-02' });
+    expect(mockedGet).toHaveBeenCalledWith('/staff/tickets/summary', {
+      params: { start_date: '2026-05-01', end_date: '2026-06-02' },
+    });
   });
 
   it('propagates errors so the dashboard can show a Hebrew error + retry', async () => {

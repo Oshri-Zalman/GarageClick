@@ -17,10 +17,18 @@ const mockedGet = vi.mocked(apiClient.get);
 describe('admin service', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('GET /admin/tickets/summary', async () => {
+  it('GET /admin/tickets/summary (no range)', async () => {
     mockedGet.mockResolvedValueOnce({ data: { total_pending: 1 } });
     await getTicketsSummary();
-    expect(mockedGet).toHaveBeenCalledWith('/admin/tickets/summary');
+    expect(mockedGet).toHaveBeenCalledWith('/admin/tickets/summary', { params: {} });
+  });
+
+  it('GET /admin/tickets/summary forwards the date range', async () => {
+    mockedGet.mockResolvedValueOnce({ data: { total_pending: 1 } });
+    await getTicketsSummary({ start_date: '2026-05-01', end_date: '2026-06-02' });
+    expect(mockedGet).toHaveBeenCalledWith('/admin/tickets/summary', {
+      params: { start_date: '2026-05-01', end_date: '2026-06-02' },
+    });
   });
 
   it('GET /admin/employees', async () => {
@@ -42,6 +50,14 @@ describe('admin service', () => {
     await getPerformance(5);
     expect(mockedGet).toHaveBeenCalledWith('/admin/reports/performance', {
       params: { mechanic_id: 5 },
+    });
+  });
+
+  it('GET /admin/reports/performance forwards the mechanic_id + date range', async () => {
+    mockedGet.mockResolvedValueOnce({ data: { mechanic_id: 5 } });
+    await getPerformance(5, { start_date: '2026-05-01', end_date: '2026-06-02' });
+    expect(mockedGet).toHaveBeenCalledWith('/admin/reports/performance', {
+      params: { mechanic_id: 5, start_date: '2026-05-01', end_date: '2026-06-02' },
     });
   });
 });

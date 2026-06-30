@@ -15,6 +15,9 @@ interface Props {
   // Close/archive a Completed ticket — keeps it in history, removes it from the
   // active board (Stage 8).
   onArchive: () => void;
+  // Open the read-only details modal (double-click). Single-click and the
+  // status/close buttons keep their existing behaviour.
+  onShowDetails: () => void;
 }
 
 export default function TicketCard({
@@ -24,6 +27,7 @@ export default function TicketCard({
   archiving,
   onAdvance,
   onArchive,
+  onShowDetails,
 }: Props) {
   const actionLabel = ACTION_LABELS[ticket.status];
   // Completed tickets can be closed/archived (kept in history) by anyone allowed
@@ -31,7 +35,9 @@ export default function TicketCard({
   const canArchive = ticket.status === 'Completed' && canUpdate;
 
   return (
-    <article className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+    <article
+      onDoubleClick={onShowDetails}
+      className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="text-base font-bold text-gray-900">{ticket.license_plate}</span>
         <StatusBadge status={ticket.status} />

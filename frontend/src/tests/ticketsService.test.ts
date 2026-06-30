@@ -6,7 +6,7 @@ vi.mock('../services/apiClient', () => ({
 }));
 
 import apiClient from '../services/apiClient';
-import { archiveTicket, listTickets, updateTicketStatus } from '../services/tickets';
+import { archiveTicket, getTicket, listTickets, updateTicketStatus } from '../services/tickets';
 
 const mockedGet = vi.mocked(apiClient.get);
 const mockedPost = vi.mocked(apiClient.post);
@@ -27,6 +27,21 @@ describe('tickets service', () => {
     mockedGet.mockResolvedValueOnce({ data: { items: [TICKET], page: 1, limit: 20, total: 1 } });
     await listTickets({ archived_only: true });
     expect(mockedGet).toHaveBeenCalledWith('/tickets', { params: { archived_only: true } });
+  });
+
+  it('listTickets forwards archived_only + date range for the archive filter', async () => {
+    mockedGet.mockResolvedValueOnce({ data: { items: [TICKET], page: 1, limit: 20, total: 1 } });
+    await listTickets({ archived_only: true, start_date: '2026-05-01', end_date: '2026-06-02' });
+    expect(mockedGet).toHaveBeenCalledWith('/tickets', {
+      params: { archived_only: true, start_date: '2026-05-01', end_date: '2026-06-02' },
+    });
+  });
+
+  it('getTicket reads a single ticket (with parts_used) from GET /tickets/{id}', async () => {
+    const detail = { ...TICKET, parts_used: [{ part_id: 1, part_name: 'בלם', part_code: 'BRK', quantity_used: 2 }] };
+    mockedGet.mockResolvedValueOnce({ data: detail });
+    await expect(getTicket(7)).resolves.toEqual(detail);
+    expect(mockedGet).toHaveBeenCalledWith('/tickets/7');
   });
 
   it('updateTicketStatus PATCHes the new status + confirmation flag', async () => {

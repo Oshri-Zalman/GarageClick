@@ -3,6 +3,7 @@ import type {
   CreateTicketPayload,
   KanbanTicket,
   Paginated,
+  TicketDetail,
   TicketStatus,
 } from '../types';
 
@@ -19,6 +20,10 @@ interface ListParams {
   // instead of fetching active+archived and filtering client-side. Mechanic
   // scoping still applies.
   archived_only?: boolean;
+  // Optional creation/open-date range (the backend filters by the ticket's
+  // open date). Used by the ticket archive date filter alongside archived_only.
+  start_date?: string;
+  end_date?: string;
 }
 
 // POST /api/tickets — opens a new work ticket. Accepts either the existing
@@ -38,6 +43,13 @@ export async function createTicket(payload: CreateTicketPayload): Promise<Kanban
 export async function listTickets(params: ListParams = {}): Promise<KanbanTicket[]> {
   const { data } = await apiClient.get<Paginated<KanbanTicket>>('/tickets', { params });
   return data.items;
+}
+
+// GET /api/tickets/{id} — a single ticket with its full details, including the
+// `parts_used` it consumed. Backs the read-only Work Board details modal.
+export async function getTicket(id: number): Promise<TicketDetail> {
+  const { data } = await apiClient.get<TicketDetail>(`/tickets/${id}`);
+  return data;
 }
 
 // PATCH /api/tickets/{id}/status — advances a ticket through the state machine.
