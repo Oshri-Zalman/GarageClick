@@ -16,6 +16,7 @@ COPY . .
 
 EXPOSE 8000
 
-# Platforms inject $PORT; fall back to 8000 locally.
+# start.sh runs migrations + catalog seed (idempotent), then serves the API.
 # Single worker on purpose: the logout token denylist is in-memory (see DEPLOY.md).
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+RUN chmod +x start.sh
+CMD ["./start.sh"]
