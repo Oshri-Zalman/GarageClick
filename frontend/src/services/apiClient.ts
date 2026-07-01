@@ -1,6 +1,8 @@
 import axios, { AxiosError, type AxiosResponse } from 'axios';
 
-const BASE_URL = '/api';
+// In production, set VITE_API_URL (e.g. https://api.example.com/api) at build time.
+// In local dev it falls back to '/api', which the Vite proxy routes to the backend.
+const BASE_URL = import.meta.env.VITE_API_URL ?? '/api';
 
 const apiClient = axios.create({
   baseURL: BASE_URL,

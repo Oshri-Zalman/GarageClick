@@ -58,17 +58,11 @@ a **Pre-Deploy Command** = `python -m app.init_db`.
 Build settings: base directory `frontend`, build command `npm run build`, publish
 directory `frontend/dist`.
 
-**One required change (frontend — Tal's task):** the API base URL must be
-configurable for production. In `frontend/src/services/apiClient.ts`:
+**Already done on this branch:** `frontend/src/services/apiClient.ts` reads
+`const BASE_URL = import.meta.env.VITE_API_URL ?? '/api';` — Vite proxy locally,
+deployed backend in production.
 
-```ts
-// before:
-const BASE_URL = '/api';
-// after:
-const BASE_URL = import.meta.env.VITE_API_URL ?? '/api';
-```
-
-Then set a build-time env var on Netlify/Vercel:
+Just set a build-time env var on Netlify/Vercel:
 
 ```
 VITE_API_URL=https://<your-backend-domain>/api
