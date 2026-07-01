@@ -35,10 +35,16 @@ export default function PartsSelection({
   // Bumped by the retry button to re-run the load (FR-9).
   const [reloadToken, setReloadToken] = useState(0);
 
-  const vehicleKnown = Boolean(manufacturer && model && year);
+  // Manufacturer + model are enough to load parts. `year` is optional because an
+  // existing vehicle may have no recorded year — the backend then matches by
+  // manufacturer/model only (NULL part fields still act as wildcards).
+  const vehicleKnown = Boolean(manufacturer && model);
   // A stable identity for the current vehicle+retry combo. Drives both the
-  // render-phase loading reset and the fetch effect.
-  const requestKey = vehicleKnown ? `${manufacturer}|${model}|${year}|${reloadToken}` : null;
+  // render-phase loading reset and the fetch effect. A missing year collapses to
+  // an empty segment so the key stays stable.
+  const requestKey = vehicleKnown
+    ? `${manufacturer}|${model}|${year ?? ''}|${reloadToken}`
+    : null;
 
   // The load result, tagged with the requestKey it belongs to so a stale
   // response is ignored once the vehicle changes.
@@ -58,7 +64,7 @@ export default function PartsSelection({
   useEffect(() => {
     if (!requestKey) return;
     let active = true;
-    getCompatibleParts(manufacturer, model, year as number)
+    getCompatibleParts(manufacturer, model, year)
       .then((list) => {
         if (active) setResult({ key: requestKey, status: 'ready', parts: list });
       })
@@ -75,10 +81,26 @@ export default function PartsSelection({
     result.status === 'error' ? 'שגיאה בטעינת החלפים התואמים. נסה שוב.' : null;
   const parts = result.status === 'ready' ? result.parts : [];
 
+  // Local search over the ALREADY-LOADED compatible parts (no extra request).
+  // Case-insensitive substring match on name/code/manufacturer/model, so it
+  // works with Hebrew, English (either case) and numbers (e.g. a part code).
+  const [search, setSearch] = useState('');
+  const query = search.trim().toLowerCase();
+  const visibleParts = query
+    ? parts.filter((p) =>
+        [p.part_name, p.part_code, p.manufacturer, p.model].some(
+          (field) => field != null && field.toLowerCase().includes(query)
+        )
+      )
+    : parts;
+
   const togglePart = (part: CompatiblePart, checked: boolean) => {
     const selected = { ...value.selected };
     if (checked) {
       selected[part.id] = 1;
+      // Selecting a part clears the search so the user can look up the next one;
+      // already-selected parts stay selected (they live in `value.selected`).
+      setSearch('');
     } else {
       delete selected[part.id];
     }
@@ -108,7 +130,7 @@ export default function PartsSelection({
 
       {!vehicleKnown && (
         <p className="text-sm text-gray-500">
-          הזן את פרטי הרכב (יצרן, דגם, שנה) כדי לטעון חלפים תואמים.
+          הזן את פרטי הרכב (יצרן ודגם) כדי לטעון חלפים תואמים.
         </p>
       )}
 
@@ -126,7 +148,24 @@ export default function PartsSelection({
             </p>
           )}
 
-          {parts.map((part) => {
+          {parts.length > 0 && (
+            <input
+              type="search"
+              aria-label="חיפוש חלפים"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="חיפוש לפי שם, מק״ט או יצרן"
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-400"
+            />
+          )}
+
+          {parts.length > 0 && visibleParts.length === 0 && (
+            <p className="text-sm text-gray-500" data-testid="no-search-results">
+              לא נמצאו חלפים התואמים את החיפוש.
+            </p>
+          )}
+
+          {visibleParts.map((part) => {
             const isSelected = part.id in value.selected;
             const disabled = !part.available || value.noParts;
             return (

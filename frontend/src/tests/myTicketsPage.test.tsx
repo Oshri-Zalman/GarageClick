@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import MyTicketsPage from '../pages/MyTicketsPage';
@@ -88,11 +88,12 @@ describe('MyTicketsPage — rendering & data source', () => {
     await screen.findByText('11-111-11');
   });
 
-  it('fetches tickets with include_archived=true', async () => {
+  it('fetches tickets with archived_only=true (and not include_archived)', async () => {
     renderPage();
     await screen.findByText('11-111-11');
     expect(listTickets).toHaveBeenCalledTimes(1);
-    expect(listTickets).toHaveBeenCalledWith({ include_archived: true });
+    expect(listTickets).toHaveBeenCalledWith({ archived_only: true });
+    expect(listTickets).not.toHaveBeenCalledWith({ include_archived: true });
   });
 
   it('shows only archived tickets and hides active ones', async () => {
@@ -106,10 +107,13 @@ describe('MyTicketsPage — rendering & data source', () => {
     expect(screen.queryByText('33-333-33')).not.toBeInTheDocument();
   });
 
-  it('shows a Hebrew archive/closed label on archived tickets', async () => {
+  it('shows "בארכיון" and not the "הושלם" status on archive cards', async () => {
     renderPage();
     const card = (await screen.findByText('11-111-11')).closest('article')!;
+    // Archive cards surface only "בארכיון" — the "הושלם" status pill is dropped
+    // since every archived ticket is already closed.
     expect(within(card).getByText(/בארכיון/)).toBeInTheDocument();
+    expect(within(card).queryByText('הושלם')).not.toBeInTheDocument();
   });
 
   it('shows useful ticket details (customer, mechanic, description)', async () => {
@@ -148,14 +152,56 @@ describe('MyTicketsPage — search & filter', () => {
     expect(screen.getByText('לא נמצאו כרטיסים התואמים את החיפוש.')).toBeInTheDocument();
   });
 
-  it('filters by status', async () => {
+  it('no longer renders the status dropdown filter', async () => {
+    renderPage();
+    await screen.findByText('11-111-11');
+    expect(screen.queryByLabelText('סטטוס')).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'בטיפול' })).not.toBeInTheDocument();
+  });
+});
+
+describe('MyTicketsPage — date range filter', () => {
+  beforeEach(() => {
+    vi.mocked(listTickets).mockResolvedValue([ARCHIVED]);
+  });
+
+  it('renders start/end inputs with type="date"', async () => {
+    renderPage();
+    await screen.findByText('11-111-11');
+    const start = screen.getByLabelText('מתאריך');
+    const end = screen.getByLabelText('עד תאריך');
+    expect(start).toHaveAttribute('type', 'date');
+    expect(end).toHaveAttribute('type', 'date');
+  });
+
+  it('sends archived_only:true plus the applied start_date/end_date', async () => {
     renderPage();
     await screen.findByText('11-111-11');
 
-    await userEvent.selectOptions(screen.getByLabelText('סטטוס'), 'In Progress');
+    fireEvent.change(screen.getByLabelText('מתאריך'), { target: { value: '2026-05-01' } });
+    fireEvent.change(screen.getByLabelText('עד תאריך'), { target: { value: '2026-06-02' } });
+    await userEvent.click(screen.getByRole('button', { name: 'החל' }));
 
-    expect(screen.getByText('99-999-99')).toBeInTheDocument();
-    expect(screen.queryByText('11-111-11')).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(listTickets).toHaveBeenLastCalledWith({
+        archived_only: true,
+        start_date: '2026-05-01',
+        end_date: '2026-06-02',
+      })
+    );
+  });
+
+  it('shows a Hebrew validation error and does not call the API for an invalid range', async () => {
+    renderPage();
+    await screen.findByText('11-111-11');
+    vi.clearAllMocks();
+
+    fireEvent.change(screen.getByLabelText('מתאריך'), { target: { value: '2026-06-02' } });
+    fireEvent.change(screen.getByLabelText('עד תאריך'), { target: { value: '2026-05-01' } });
+    await userEvent.click(screen.getByRole('button', { name: 'החל' }));
+
+    expect(screen.getByText('תאריך ההתחלה חייב להיות מוקדם מתאריך הסיום.')).toBeInTheDocument();
+    expect(listTickets).not.toHaveBeenCalled();
   });
 });
 

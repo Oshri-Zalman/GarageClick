@@ -8,10 +8,11 @@ vi.mock('../services/tickets', () => ({
   listTickets: vi.fn(),
   updateTicketStatus: vi.fn(),
   archiveTicket: vi.fn(),
+  getTicket: vi.fn(),
 }));
 
 import { AxiosError } from 'axios';
-import { listTickets, updateTicketStatus, archiveTicket } from '../services/tickets';
+import { listTickets, updateTicketStatus, archiveTicket, getTicket } from '../services/tickets';
 
 function axiosError(detail: string): AxiosError {
   const err = new AxiosError('request failed');
@@ -107,11 +108,13 @@ describe('KanbanBoard — layout', () => {
     renderBoard(makeUser('Manager'));
     await screen.findByRole('region', { name: 'ממתין לטיפול' });
 
-    // The Work Board must keep its default behaviour: no include_archived flag,
-    // so closed/archived tickets never leak onto the active board (Stage 10).
+    // The Work Board must keep its default behaviour: no include_archived or
+    // archived_only flag, so closed/archived tickets never leak onto the active
+    // board (Stage 10).
     expect(listTickets).toHaveBeenCalledTimes(1);
     const params = vi.mocked(listTickets).mock.calls[0][0] ?? {};
     expect(params).not.toHaveProperty('include_archived');
+    expect(params).not.toHaveProperty('archived_only');
   });
 
   it('shows the correct count in each column counter', async () => {
@@ -131,6 +134,14 @@ describe('KanbanBoard — layout', () => {
     expect(within(card).getByText('תיאור')).toBeInTheDocument();
     expect(within(card).getByText('מכונאי: דוד')).toBeInTheDocument();
     expect(within(card).getByText('ממתין לטיפול')).toBeInTheDocument();
+  });
+
+  it('still shows the "הושלם" status badge on a Completed card (Work Board, unlike the archive)', async () => {
+    renderBoard(makeUser('Manager'));
+    await screen.findByRole('region', { name: 'הושלם' });
+
+    const completedCard = within(region('הושלם')).getByText('33-333-33').closest('article')!;
+    expect(within(completedCard).getByText('הושלם')).toBeInTheDocument();
   });
 });
 
@@ -271,6 +282,129 @@ describe('KanbanBoard — archive (close) completed tickets', () => {
 
     await userEvent.click(within(region('הושלם')).getByRole('button', { name: 'סגור כרטיס' }));
     expect(archiveTicket).toHaveBeenCalledWith(3);
+  });
+});
+
+describe('KanbanBoard — ticket details modal (double-click)', () => {
+  const DETAIL = {
+    ...T_PENDING,
+    parts_used: [
+      { part_id: 1, part_name: 'בלמים', part_code: 'BRK001', quantity_used: 2 },
+    ],
+  };
+
+  it('double-clicking the card body fetches GET /api/tickets/{id} and opens the details modal', async () => {
+    vi.mocked(getTicket).mockResolvedValue(DETAIL);
+    renderBoard(makeUser('Manager'));
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
+
+    // Double-click the card body (the plate text), not a button.
+    await userEvent.dblClick(within(region('ממתין לטיפול')).getByText('11-111-11'));
+
+    expect(getTicket).toHaveBeenCalledWith(1);
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('תיאור')).toBeInTheDocument();
+    // parts_used list is shown.
+    expect(within(dialog).getByText(/בלמים/)).toBeInTheDocument();
+    expect(within(dialog).getByText('× 2')).toBeInTheDocument();
+  });
+
+  it('shows the opened date with the time together on one line, under its label', async () => {
+    vi.mocked(getTicket).mockResolvedValue(DETAIL);
+    renderBoard(makeUser('Manager'));
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
+
+    await userEvent.dblClick(within(region('ממתין לטיפול')).getByText('11-111-11'));
+    const dialog = await screen.findByRole('dialog');
+
+    // The label is its own element…
+    expect(within(dialog).getByText('נפתח בתאריך')).toBeInTheDocument();
+    // …and the date + time render together in a single element (DD/MM/YYYY HH:mm).
+    expect(
+      within(dialog).getByText((content) => /\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/.test(content))
+    ).toBeInTheDocument();
+  });
+
+  it('double-clicking an action button does NOT open the details modal', async () => {
+    vi.mocked(updateTicketStatus).mockResolvedValue(
+      makeTicket({ id: 1, status: 'In Progress', license_plate: '11-111-11' })
+    );
+    renderBoard(makeUser('Mechanic', MECHANIC_DAVID_ID));
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
+
+    // Double-clicking directly on "התחל טיפול" behaves only as the button — the
+    // card's onDoubleClick (details modal) must not fire.
+    await userEvent.dblClick(screen.getByRole('button', { name: 'התחל טיפול' }));
+
+    expect(getTicket).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('double-clicking the "סגור כרטיס" button does NOT open the details modal', async () => {
+    vi.mocked(archiveTicket).mockResolvedValue(
+      makeTicket({ id: 3, status: 'Completed', license_plate: '33-333-33', archived_at: '2026-06-18T10:00:00Z' })
+    );
+    renderBoard(makeUser('Manager'));
+    await screen.findByRole('region', { name: 'הושלם' });
+
+    await userEvent.dblClick(within(region('הושלם')).getByRole('button', { name: 'סגור כרטיס' }));
+
+    expect(getTicket).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('shows "ללא חלפים" when the ticket used no parts', async () => {
+    vi.mocked(getTicket).mockResolvedValue({ ...T_PENDING, parts_used: [] });
+    renderBoard(makeUser('Manager'));
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
+
+    const card = within(region('ממתין לטיפול')).getByText('11-111-11').closest('article')!;
+    await userEvent.dblClick(card);
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('ללא חלפים')).toBeInTheDocument();
+  });
+
+  it('can be closed', async () => {
+    vi.mocked(getTicket).mockResolvedValue({ ...T_PENDING, parts_used: [] });
+    renderBoard(makeUser('Manager'));
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
+
+    const card = within(region('ממתין לטיפול')).getByText('11-111-11').closest('article')!;
+    await userEvent.dblClick(card);
+
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'סגירה' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('shows a Hebrew error with retry when the fetch fails', async () => {
+    vi.mocked(getTicket).mockRejectedValueOnce(new Error('500'));
+    renderBoard(makeUser('Manager'));
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
+
+    const card = within(region('ממתין לטיפול')).getByText('11-111-11').closest('article')!;
+    await userEvent.dblClick(card);
+
+    expect(await screen.findByText('שגיאה בטעינת פרטי הכרטיס. נסה שוב.')).toBeInTheDocument();
+
+    vi.mocked(getTicket).mockResolvedValueOnce({ ...T_PENDING, parts_used: [] });
+    await userEvent.click(screen.getByRole('button', { name: 'נסה שוב' }));
+    expect(await screen.findByText('ללא חלפים')).toBeInTheDocument();
+  });
+
+  it('does not break single-click status actions', async () => {
+    vi.mocked(updateTicketStatus).mockResolvedValue(
+      makeTicket({ id: 1, status: 'In Progress', license_plate: '11-111-11' })
+    );
+    renderBoard(makeUser('Mechanic', MECHANIC_DAVID_ID));
+    await screen.findByRole('region', { name: 'ממתין לטיפול' });
+
+    // A normal single click on the action button still advances the ticket and
+    // never opens the details modal.
+    await userEvent.click(screen.getByRole('button', { name: 'התחל טיפול' }));
+    expect(updateTicketStatus).toHaveBeenCalledWith(1, 'In Progress', false);
+    expect(getTicket).not.toHaveBeenCalled();
   });
 });
 

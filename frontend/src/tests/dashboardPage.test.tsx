@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import DashboardPage from '../pages/DashboardPage';
@@ -93,13 +93,55 @@ describe('DashboardPage — Manager', () => {
     expect(screen.getByRole('region', { name: 'דוחות ביצועים' })).toBeInTheDocument();
   });
 
-  it('shows the ticket status totals and average completion time', async () => {
+  it('shows the ticket status totals', async () => {
     renderDashboard(MANAGER);
     const region = await screen.findByRole('region', { name: 'סיכום סטטוס קריאות' });
     expect(within(region).getByText('5')).toBeInTheDocument();
     expect(within(region).getByText('3')).toBeInTheDocument();
     expect(within(region).getByText('8')).toBeInTheDocument();
-    expect(within(region).getByText('4 שעות ו-30 דקות')).toBeInTheDocument();
+  });
+
+  it('does not display any average-time metric anywhere on the dashboard', async () => {
+    renderDashboard(MANAGER);
+    await screen.findByRole('region', { name: 'דוחות ביצועים' });
+    // The avg completion KPI/card/column is removed from the dashboard UI…
+    expect(screen.queryByText('זמן טיפול ממוצע')).not.toBeInTheDocument();
+    expect(screen.queryByText('4 שעות ו-30 דקות')).not.toBeInTheDocument();
+    // …and so is the per-mechanic average time per ticket on the performance cards.
+    expect(screen.queryByText('זמן ממוצע לקריאה')).not.toBeInTheDocument();
+    expect(screen.queryByText('3 שעות ו-20 דקות')).not.toBeInTheDocument();
+  });
+
+  it('sends the applied date range to the admin summary and performance (not employee monitoring)', async () => {
+    renderDashboard(MANAGER);
+    await screen.findByRole('region', { name: 'סיכום סטטוס קריאות' });
+
+    fireEvent.change(screen.getByLabelText('מתאריך'), { target: { value: '2026-05-01' } });
+    fireEvent.change(screen.getByLabelText('עד תאריך'), { target: { value: '2026-06-02' } });
+    await userEvent.click(screen.getByRole('button', { name: 'החל' }));
+
+    const range = { start_date: '2026-05-01', end_date: '2026-06-02' };
+    await screen.findByRole('region', { name: 'סיכום סטטוס קריאות' });
+    expect(getTicketsSummary).toHaveBeenLastCalledWith(range);
+    expect(getPerformance).toHaveBeenLastCalledWith(5, range);
+    // Employee monitoring (ניטור עובדים) must NOT receive any date params.
+    vi.mocked(getEmployees).mock.calls.forEach((call) => expect(call).toEqual([]));
+  });
+
+  it('shows a Hebrew validation error and calls no API for an invalid date range', async () => {
+    renderDashboard(MANAGER);
+    await screen.findByRole('region', { name: 'סיכום סטטוס קריאות' });
+    vi.clearAllMocks();
+
+    // start after end → invalid.
+    fireEvent.change(screen.getByLabelText('מתאריך'), { target: { value: '2026-06-02' } });
+    fireEvent.change(screen.getByLabelText('עד תאריך'), { target: { value: '2026-05-01' } });
+    await userEvent.click(screen.getByRole('button', { name: 'החל' }));
+
+    expect(screen.getByText('תאריך ההתחלה חייב להיות מוקדם מתאריך הסיום.')).toBeInTheDocument();
+    expect(getTicketsSummary).not.toHaveBeenCalled();
+    expect(getPerformance).not.toHaveBeenCalled();
+    expect(getEmployees).not.toHaveBeenCalled();
   });
 
   it('shows the employee monitoring table when employees are available', async () => {
@@ -115,14 +157,25 @@ describe('DashboardPage — Manager', () => {
     expect(within(region).getByText('2026-06-02')).toBeInTheDocument();
   });
 
-  it('shows the performance report cards', async () => {
+  it('shows the performance report cards (name + completed tickets + work hours)', async () => {
     renderDashboard(MANAGER);
     const region = await screen.findByRole('region', { name: 'דוחות ביצועים' });
     expect(within(region).getByText('דוד')).toBeInTheDocument();
-    expect(within(region).getByText('12')).toBeInTheDocument();
+    expect(within(region).getByText('12')).toBeInTheDocument(); // tickets_completed
+    expect(within(region).getByText('קריאות שהושלמו')).toBeInTheDocument();
+    expect(within(region).getByText('שעות עבודה')).toBeInTheDocument();
     // Performance is fetched per assignable employee (Mechanic/Manager only).
     expect(getPerformance).toHaveBeenCalledTimes(1);
-    expect(getPerformance).toHaveBeenCalledWith(5);
+    expect(getPerformance).toHaveBeenCalledWith(5, {});
+  });
+
+  it('does not show the average time per ticket on the performance cards', async () => {
+    renderDashboard(MANAGER);
+    const region = await screen.findByRole('region', { name: 'דוחות ביצועים' });
+    expect(within(region).getByText('דוד')).toBeInTheDocument();
+    // The avg-time metric (avg_time_per_ticket_minutes → "3 שעות ו-20 דקות") is gone.
+    expect(within(region).queryByText('זמן ממוצע לקריאה')).not.toBeInTheDocument();
+    expect(within(region).queryByText('3 שעות ו-20 דקות')).not.toBeInTheDocument();
   });
 
   it('shows a Hebrew unavailable state for employee monitoring when the endpoint fails', async () => {
@@ -160,9 +213,6 @@ describe('DashboardPage — Manager', () => {
     expect(await screen.findByText('אין עובדים להצגה.')).toBeInTheDocument();
     expect(screen.getByText('אין נתוני קריאות לפי יום בטווח הנבחר.')).toBeInTheDocument();
     expect(screen.getByText('אין נתוני ביצועים להצגה.')).toBeInTheDocument();
-    // Average completion time falls back to the Hebrew placeholder.
-    const region = screen.getByRole('region', { name: 'סיכום סטטוס קריאות' });
-    expect(within(region).getByText('לא זמין')).toBeInTheDocument();
   });
 
   it('shows a Hebrew loading state while data loads', () => {
@@ -220,11 +270,42 @@ describe('DashboardPage — Secretary', () => {
     expect(getPerformance).not.toHaveBeenCalled();
   });
 
-  it('does not show the manager-only average completion time card', async () => {
+  it('does not display the average completion time on the secretary dashboard', async () => {
     vi.mocked(getStaffTicketsSummary).mockResolvedValue(STAFF_SUMMARY);
     renderDashboard(SECRETARY);
-    const region = await screen.findByRole('region', { name: 'סיכום סטטוס קריאות' });
-    expect(within(region).queryByText('זמן טיפול ממוצע')).not.toBeInTheDocument();
+    await screen.findByRole('region', { name: 'סיכום סטטוס קריאות' });
+    expect(screen.queryByText('זמן טיפול ממוצע')).not.toBeInTheDocument();
+    expect(screen.queryByText('3 שעות')).not.toBeInTheDocument();
+  });
+
+  it('sends the applied date range to the staff summary endpoint', async () => {
+    vi.mocked(getStaffTicketsSummary).mockResolvedValue(STAFF_SUMMARY);
+    renderDashboard(SECRETARY);
+    await screen.findByRole('region', { name: 'סיכום סטטוס קריאות' });
+
+    fireEvent.change(screen.getByLabelText('מתאריך'), { target: { value: '2026-05-01' } });
+    fireEvent.change(screen.getByLabelText('עד תאריך'), { target: { value: '2026-06-02' } });
+    await userEvent.click(screen.getByRole('button', { name: 'החל' }));
+
+    await screen.findByRole('region', { name: 'סיכום סטטוס קריאות' });
+    expect(getStaffTicketsSummary).toHaveBeenLastCalledWith({
+      start_date: '2026-05-01',
+      end_date: '2026-06-02',
+    });
+  });
+
+  it('shows a Hebrew validation error and calls no API for an invalid date range', async () => {
+    vi.mocked(getStaffTicketsSummary).mockResolvedValue(STAFF_SUMMARY);
+    renderDashboard(SECRETARY);
+    await screen.findByRole('region', { name: 'סיכום סטטוס קריאות' });
+    vi.clearAllMocks();
+
+    fireEvent.change(screen.getByLabelText('מתאריך'), { target: { value: '2026-06-02' } });
+    fireEvent.change(screen.getByLabelText('עד תאריך'), { target: { value: '2026-05-01' } });
+    await userEvent.click(screen.getByRole('button', { name: 'החל' }));
+
+    expect(screen.getByText('תאריך ההתחלה חייב להיות מוקדם מתאריך הסיום.')).toBeInTheDocument();
+    expect(getStaffTicketsSummary).not.toHaveBeenCalled();
   });
 
   it('shows an empty operational state when there are no tickets', async () => {

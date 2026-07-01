@@ -1,11 +1,5 @@
 import type { TicketStatus } from '../types';
-import { STATUS_LABELS } from '../config/ticketStatus';
-
-const STYLES: Record<TicketStatus, string> = {
-  Pending: 'bg-amber-100 text-amber-800',
-  'In Progress': 'bg-orange-200 text-orange-900',
-  Completed: 'bg-green-100 text-green-800',
-};
+import { STATUS_BADGE_STYLES, STATUS_LABELS } from '../config/ticketStatus';
 
 interface Props {
   status: TicketStatus;
@@ -14,7 +8,7 @@ interface Props {
 export default function StatusBadge({ status }: Props) {
   return (
     <span
-      className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${STYLES[status]}`}
+      className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE_STYLES[status]}`}
     >
       {STATUS_LABELS[status]}
     </span>

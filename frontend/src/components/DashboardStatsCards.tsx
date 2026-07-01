@@ -1,13 +1,9 @@
-import { formatMinutes } from '../utils/duration';
+import { STATUS_ACCENT_STYLES } from '../config/ticketStatus';
 
 interface Props {
   pending: number;
   inProgress: number;
   completed: number;
-  // When provided, an extra card shows the average completion time. Pass null to
-  // render the card with a Hebrew "unavailable" value; omit it entirely to hide
-  // the card (e.g. the Secretary dashboard, which has no manager-only metric).
-  avgCompletionMinutes?: number | null;
 }
 
 interface Card {
@@ -18,33 +14,20 @@ interface Card {
   accent: string;
 }
 
-// Big numeric summary cards for the top of a dashboard. Used by both the Manager
-// dashboard (with average completion time) and the Secretary dashboard (status
-// totals only). Purely presentational.
-export default function DashboardStatsCards({
-  pending,
-  inProgress,
-  completed,
-  avgCompletionMinutes,
-}: Props) {
+// Big numeric summary cards for the top of a dashboard. Shared by the Manager
+// and Secretary dashboards (status totals only). The average completion time is
+// intentionally NOT shown here — the dashboard does not display it anywhere
+// (product decision). Colors follow the shared status palette (Pending=red,
+// In Progress=yellow, Completed=green). Purely presentational.
+export default function DashboardStatsCards({ pending, inProgress, completed }: Props) {
   const cards: Card[] = [
-    { key: 'pending', label: 'ממתינות לטיפול', value: String(pending), icon: '⏳', accent: 'text-amber-600' },
-    { key: 'in-progress', label: 'בטיפול', value: String(inProgress), icon: '⚙️', accent: 'text-orange-600' },
-    { key: 'completed', label: 'הושלמו', value: String(completed), icon: '✅', accent: 'text-green-600' },
+    { key: 'pending', label: 'ממתינות לטיפול', value: String(pending), icon: '⏳', accent: STATUS_ACCENT_STYLES.Pending },
+    { key: 'in-progress', label: 'בטיפול', value: String(inProgress), icon: '⚙️', accent: STATUS_ACCENT_STYLES['In Progress'] },
+    { key: 'completed', label: 'הושלמו', value: String(completed), icon: '✅', accent: STATUS_ACCENT_STYLES.Completed },
   ];
 
-  if (avgCompletionMinutes !== undefined) {
-    cards.push({
-      key: 'avg',
-      label: 'זמן טיפול ממוצע',
-      value: formatMinutes(avgCompletionMinutes),
-      icon: '⏱️',
-      accent: 'text-gray-700',
-    });
-  }
-
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       {cards.map((card) => (
         <div
           key={card.key}

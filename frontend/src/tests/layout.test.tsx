@@ -94,13 +94,17 @@ describe('Header', () => {
     expect(screen.getByText('מנהל')).toBeInTheDocument();
   });
 
-  it('shows logout button when user is logged in', () => {
+  it('shows a user-menu trigger (not standalone logout/change-password buttons) when logged in', () => {
     render(
       <MemoryRouter>
         <Header userName="אורי" userRole="Secretary" />
       </MemoryRouter>
     );
-    expect(screen.getByRole('button', { name: 'יציאה' })).toBeInTheDocument();
+    // The identity area is the menu trigger; logout + change password now live
+    // inside its dropdown, so there are no standalone header buttons for them.
+    expect(screen.getByRole('button', { name: 'תפריט משתמש' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'יציאה' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'החלפת סיסמה' })).not.toBeInTheDocument();
   });
 });
 

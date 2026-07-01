@@ -15,6 +15,9 @@ interface Props {
   // Close/archive a Completed ticket — keeps it in history, removes it from the
   // active board (Stage 8).
   onArchive: () => void;
+  // Open the read-only details modal (double-click). Single-click and the
+  // status/close buttons keep their existing behaviour.
+  onShowDetails: () => void;
 }
 
 export default function TicketCard({
@@ -24,6 +27,7 @@ export default function TicketCard({
   archiving,
   onAdvance,
   onArchive,
+  onShowDetails,
 }: Props) {
   const actionLabel = ACTION_LABELS[ticket.status];
   // Completed tickets can be closed/archived (kept in history) by anyone allowed
@@ -31,7 +35,9 @@ export default function TicketCard({
   const canArchive = ticket.status === 'Completed' && canUpdate;
 
   return (
-    <article className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+    <article
+      onDoubleClick={onShowDetails}
+      className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="text-base font-bold text-gray-900">{ticket.license_plate}</span>
         <StatusBadge status={ticket.status} />
@@ -47,6 +53,9 @@ export default function TicketCard({
         <button
           type="button"
           onClick={onAdvance}
+          // Double-clicking an action button must NOT also open the details modal
+          // (the card's onDoubleClick) — it should behave only as the button.
+          onDoubleClick={(e) => e.stopPropagation()}
           disabled={updating}
           className="w-full rounded-md bg-amber-600 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
         >
@@ -58,6 +67,7 @@ export default function TicketCard({
         <button
           type="button"
           onClick={onArchive}
+          onDoubleClick={(e) => e.stopPropagation()}
           disabled={archiving}
           className="w-full rounded-md border border-gray-300 bg-white py-1.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-50"
         >

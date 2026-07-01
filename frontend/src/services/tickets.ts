@@ -3,6 +3,7 @@ import type {
   CreateTicketPayload,
   KanbanTicket,
   Paginated,
+  TicketDetail,
   TicketStatus,
 } from '../types';
 
@@ -11,9 +12,18 @@ interface ListParams {
   mechanic_id?: number;
   // When true, the backend returns archived (closed) tickets alongside active
   // ones (GET /api/tickets?include_archived=true). Omitted by default so the
-  // Work Board keeps fetching active tickets only. Used by the ticket archive
-  // ("ארכיון כרטיסים").
+  // Work Board keeps fetching active tickets only.
   include_archived?: boolean;
+  // When true, the backend returns ONLY archived (closed) tickets — those with
+  // archived_at != null (GET /api/tickets?archived_only=true). Used by the
+  // ticket archive ("ארכיון כרטיסים") so the server does the archive filtering
+  // instead of fetching active+archived and filtering client-side. Mechanic
+  // scoping still applies.
+  archived_only?: boolean;
+  // Optional creation/open-date range (the backend filters by the ticket's
+  // open date). Used by the ticket archive date filter alongside archived_only.
+  start_date?: string;
+  end_date?: string;
 }
 
 // POST /api/tickets — opens a new work ticket. Accepts either the existing
@@ -27,11 +37,19 @@ export async function createTicket(payload: CreateTicketPayload): Promise<Kanban
 
 // GET /api/tickets — returns the flat list of tickets. The backend already
 // scopes Mechanics to their own tickets and applies any status/mechanic filter.
-// By default archived (closed) tickets are excluded; pass include_archived=true
-// to fetch the ticket archive / history ("ארכיון כרטיסים").
+// By default archived (closed) tickets are excluded; pass archived_only=true to
+// fetch only the archive / history ("ארכיון כרטיסים"), or include_archived=true
+// to fetch active + archived together.
 export async function listTickets(params: ListParams = {}): Promise<KanbanTicket[]> {
   const { data } = await apiClient.get<Paginated<KanbanTicket>>('/tickets', { params });
   return data.items;
+}
+
+// GET /api/tickets/{id} — a single ticket with its full details, including the
+// `parts_used` it consumed. Backs the read-only Work Board details modal.
+export async function getTicket(id: number): Promise<TicketDetail> {
+  const { data } = await apiClient.get<TicketDetail>(`/tickets/${id}`);
+  return data;
 }
 
 // PATCH /api/tickets/{id}/status — advances a ticket through the state machine.

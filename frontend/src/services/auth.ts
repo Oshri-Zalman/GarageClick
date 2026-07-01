@@ -49,3 +49,18 @@ export async function getCurrentUser(): Promise<User> {
 export function isAuthenticated(): boolean {
   return !!sessionStorage.getItem('access_token');
 }
+
+// POST /api/auth/change-password — self-service password change for any
+// authenticated user. The backend verifies `current_password`, then sets
+// `new_password` (min 6 chars). On success the existing session stays valid, so
+// the user is kept signed in. Errors (incorrect current password -> 400,
+// unauthenticated -> 401, too short -> 422) are propagated to the caller.
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  await apiClient.post('/auth/change-password', {
+    current_password: currentPassword,
+    new_password: newPassword,
+  });
+}

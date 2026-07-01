@@ -4,15 +4,18 @@ import type { CompatiblePart, Paginated, Part, PartInput } from '../types';
 // GET /api/parts/compatible?manufacturer=...&model=...&year=... — returns the
 // parts that fit the given vehicle (year_start <= year). Out-of-stock parts are
 // included with `available: false` so the UI can show them disabled (FR-7.2 /
-// TDD §4.4). Errors propagate so the caller can show a Hebrew error + retry.
+// TDD §4.4). `year` is optional: when it is null/undefined the param is omitted
+// and the backend matches by manufacturer/model only (skipping the year filter),
+// which lets existing vehicles with no recorded year still load parts. Errors
+// propagate so the caller can show a Hebrew error + retry.
 export async function getCompatibleParts(
   manufacturer: string,
   model: string,
-  year: number
+  year?: number | null
 ): Promise<CompatiblePart[]> {
-  const { data } = await apiClient.get<CompatiblePart[]>('/parts/compatible', {
-    params: { manufacturer, model, year },
-  });
+  const params: Record<string, string | number> = { manufacturer, model };
+  if (year != null) params.year = year;
+  const { data } = await apiClient.get<CompatiblePart[]>('/parts/compatible', { params });
   return data;
 }
 

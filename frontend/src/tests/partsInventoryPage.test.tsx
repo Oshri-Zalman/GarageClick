@@ -388,6 +388,32 @@ describe('PartsPage — universal parts', () => {
     expect(within(form).getByLabelText('יצרן')).toHaveValue('Volkswagen');
   });
 
+  it('sends explicit nulls when converting a regular part to universal', async () => {
+    vi.mocked(updatePart).mockResolvedValue({ ...PARTS[0], manufacturer: null, model: null, year_start: null });
+    renderPage();
+    await screen.findByRole('table');
+    await userEvent.click(screen.getAllByRole('button', { name: '✏️ ערוך' })[0]);
+    const form = screen.getByRole('form', { name: 'עריכת חלף' });
+
+    // The make/model/year are populated for the regular part being edited.
+    expect(within(form).getByLabelText('יצרן')).toHaveValue('Volkswagen');
+
+    // Toggle universal — the compatibility fields disappear and the part is
+    // saved with all three dimensions explicitly null.
+    await userEvent.click(within(form).getByRole('checkbox', { name: 'מתאים לכל הרכבים' }));
+    expect(within(form).queryByLabelText('יצרן')).not.toBeInTheDocument();
+    await userEvent.click(within(form).getByRole('button', { name: 'שמור שינויים' }));
+
+    expect(updatePart).toHaveBeenCalledWith(1, {
+      part_name: 'בלמים דיסק קדמי',
+      part_code: 'BRK001',
+      manufacturer: null,
+      model: null,
+      year_start: null,
+      quantity_current: 3,
+    });
+  });
+
   it('shows "כל הרכבים" in the inventory table for a universal part', async () => {
     vi.mocked(getInventory).mockResolvedValue(envelope([PARTS[0], UNIVERSAL_PART]));
     renderPage();

@@ -1,6 +1,7 @@
 """Ticket routes — transactional creation + state-machine status changes."""
 import logging
 import secrets
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
@@ -8,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..daterange import date_bounds, range_conditions
 from ..deps import ALL_ROLES, get_current_user, require_roles
 from ..pagination import envelope, pagination
 from ..models import (
@@ -321,6 +323,8 @@ def list_tickets(
     mechanic_id: int | None = Query(default=None),
     include_archived: bool = Query(default=False),
     archived_only: bool = Query(default=False),
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
     page: dict = Depends(pagination),
     db: Session = Depends(get_db),
     user: dict = Depends(require_roles(*ALL_ROLES)),
@@ -328,7 +332,9 @@ def list_tickets(
     """Paginated ticket list (the Kanban board). Mechanic is forced to their own;
     Manager/Secretary see all. Archived (closed) tickets are excluded by default;
     use include_archived=true to also include them, or archived_only=true to get
-    only the archived/closed ones (the "My Tickets" history page)."""
+    only the archived/closed ones (the "My Tickets" / archive page). An optional
+    date range filters by ticket open date (created_at) — used by the archive
+    instead of a (redundant) status filter."""
     conditions = []
     if user["role"] == "Mechanic":
         conditions.append(TicketWork.assigned_mechanic_id == user["user_id"])
@@ -340,6 +346,9 @@ def list_tickets(
         conditions.append(TicketWork.archived_at.is_not(None))
     elif not include_archived:
         conditions.append(TicketWork.archived_at.is_(None))
+
+    lower, upper = date_bounds(start_date, end_date)
+    conditions.extend(range_conditions(TicketWork.created_at, lower, upper))
 
     total = db.scalar(
         select(func.count()).select_from(TicketWork).where(*conditions)
@@ -394,4 +403,21 @@ def get_ticket(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Ticket not found.")
     if user["role"] == "Mechanic" and ticket["assigned_mechanic_id"] != user["user_id"]:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden.")
+
+    # Parts used on this ticket — for the expanded "floating card" detail view (#6).
+    parts = db.execute(
+        select(
+            TicketPartUsed.part_id,
+            PartInventory.part_name,
+            PartInventory.part_code,
+            TicketPartUsed.quantity_used,
+        )
+        .join(PartInventory, PartInventory.id == TicketPartUsed.part_id)
+        .where(TicketPartUsed.ticket_id == ticket_id)
+        .order_by(PartInventory.part_name)
+    ).all()
+    ticket["parts_used"] = [
+        {"part_id": pid, "part_name": pn, "part_code": pc, "quantity_used": q}
+        for pid, pn, pc, q in parts
+    ]
     return ticket

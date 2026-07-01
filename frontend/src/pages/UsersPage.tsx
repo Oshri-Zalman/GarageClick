@@ -176,7 +176,6 @@ export default function UsersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">ניהול משתמשים</h1>
-          <p className="text-sm text-gray-500">הוספה, עריכה והשבתת משתמשי המערכת.</p>
         </div>
         <button
           type="button"
@@ -218,6 +217,7 @@ export default function UsersPage() {
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <UserForm
             user={form.user}
+            isSelf={form.user.id === user.id}
             submitting={submitting}
             error={formError}
             onCreate={() => {}}
