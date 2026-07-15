@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { login, getStoredUser, isAuthenticated } from '../services/auth';
 import { homePathForRole } from '../config/access';
+import { loginErrorMessage } from '../utils/loginErrors';
 import ErrorMessage from '../components/ErrorMessage';
 
 export default function LoginPage() {
@@ -26,8 +27,11 @@ export default function LoginPage() {
     try {
       const auth = await login(username, password);
       navigate(homePathForRole(auth.role));
-    } catch {
-      setError('שם משתמש או סיסמה שגויים');
+    } catch (err) {
+      // Never let a failed login crash the app: keep the form mounted, show a
+      // Hebrew message (bad credentials vs. a generic fallback) and let the user
+      // try again.
+      setError(loginErrorMessage(err));
     } finally {
       setLoading(false);
     }

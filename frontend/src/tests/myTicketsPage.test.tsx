@@ -9,6 +9,11 @@ vi.mock('../services/tickets', () => ({
 }));
 
 import { listTickets } from '../services/tickets';
+import { getDefaultDateRange } from '../utils/dateRange';
+
+// The archive date-range filter defaults to the last week, so the first request
+// carries these start/end params alongside archived_only.
+const DEFAULT_RANGE = getDefaultDateRange();
 
 // useAuth reads the current user; swap it per test via this mutable ref.
 let mockUser: User | null;
@@ -88,11 +93,11 @@ describe('MyTicketsPage — rendering & data source', () => {
     await screen.findByText('11-111-11');
   });
 
-  it('fetches tickets with archived_only=true (and not include_archived)', async () => {
+  it('fetches tickets with archived_only=true plus the default last-week range', async () => {
     renderPage();
     await screen.findByText('11-111-11');
     expect(listTickets).toHaveBeenCalledTimes(1);
-    expect(listTickets).toHaveBeenCalledWith({ archived_only: true });
+    expect(listTickets).toHaveBeenCalledWith({ archived_only: true, ...DEFAULT_RANGE });
     expect(listTickets).not.toHaveBeenCalledWith({ include_archived: true });
   });
 
@@ -165,13 +170,16 @@ describe('MyTicketsPage — date range filter', () => {
     vi.mocked(listTickets).mockResolvedValue([ARCHIVED]);
   });
 
-  it('renders start/end inputs with type="date"', async () => {
+  it('renders start/end inputs with type="date" pre-filled with the default range', async () => {
     renderPage();
     await screen.findByText('11-111-11');
     const start = screen.getByLabelText('מתאריך');
     const end = screen.getByLabelText('עד תאריך');
     expect(start).toHaveAttribute('type', 'date');
     expect(end).toHaveAttribute('type', 'date');
+    // Default last-week range is shown in the inputs from the off.
+    expect(start).toHaveValue(DEFAULT_RANGE.start_date);
+    expect(end).toHaveValue(DEFAULT_RANGE.end_date);
   });
 
   it('sends archived_only:true plus the applied start_date/end_date', async () => {

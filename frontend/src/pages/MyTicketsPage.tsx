@@ -11,6 +11,7 @@ import {
 } from '../utils/myTickets';
 import {
   buildDateRangeParams,
+  getDefaultDateRange,
   validateDateRange,
   type DateRange,
 } from '../utils/dateRange';
@@ -42,9 +43,11 @@ export default function MyTicketsPage() {
 
   const [search, setSearch] = useState('');
   // Draft date inputs vs. the applied range (what the loaded archive reflects).
-  const [startInput, setStartInput] = useState('');
-  const [endInput, setEndInput] = useState('');
-  const [appliedRange, setAppliedRange] = useState<DateRange>({});
+  // Both default to the last week (today minus 6 days → today) so the archive
+  // opens scoped to recent activity and the first request carries start/end.
+  const [appliedRange, setAppliedRange] = useState<DateRange>(getDefaultDateRange);
+  const [startInput, setStartInput] = useState(() => appliedRange.start_date ?? '');
+  const [endInput, setEndInput] = useState(() => appliedRange.end_date ?? '');
   const [rangeError, setRangeError] = useState<string | null>(null);
   // The archive scope currently shown. Initialised to the role's default; only
   // Managers can switch it (they have both scopes available).

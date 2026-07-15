@@ -14,6 +14,7 @@ import type {
 import { apiErrorMessage } from '../utils/apiErrors';
 import {
   buildDateRangeParams,
+  getDefaultDateRange,
   validateDateRange,
   type DateRange,
 } from '../utils/dateRange';
@@ -117,9 +118,11 @@ export default function ManagerDashboard() {
 
   // Draft inputs (what the user is typing) vs. the applied range (what was last
   // submitted and is reflected in the loaded data). Only "החל" promotes drafts.
-  const [startInput, setStartInput] = useState('');
-  const [endInput, setEndInput] = useState('');
-  const [appliedRange, setAppliedRange] = useState<DateRange>({});
+  // Both default to the last week (today minus 6 days → today) so the initial
+  // load is scoped to recent activity and sends start_date/end_date from the off.
+  const [appliedRange, setAppliedRange] = useState<DateRange>(getDefaultDateRange);
+  const [startInput, setStartInput] = useState(() => appliedRange.start_date ?? '');
+  const [endInput, setEndInput] = useState(() => appliedRange.end_date ?? '');
   const [rangeError, setRangeError] = useState<string | null>(null);
 
   // State is only ever touched inside the `.then` callback (asynchronously), so

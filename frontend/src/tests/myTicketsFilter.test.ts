@@ -114,11 +114,11 @@ describe('filterArchive', () => {
   });
 });
 
-describe('formatDateTime', () => {
-  it('formats an ISO timestamp as DD/MM/YYYY HH:mm', () => {
-    // Construct from local parts so the assertion is timezone-independent.
-    const iso = new Date(2026, 5, 18, 9, 5).toISOString();
-    expect(formatDateTime(iso)).toBe('18/06/2026 09:05');
+describe('formatDateTime (re-exported from utils/datetime)', () => {
+  it('formats a UTC ISO timestamp as DD/MM/YYYY HH:mm in Israel local time', () => {
+    // 11:00Z in June is IDT (UTC+3) → 14:00 Israel time. See datetime.test.ts
+    // for full timezone coverage; this asserts the archive re-export is wired up.
+    expect(formatDateTime('2026-06-18T11:00:00Z')).toBe('18/06/2026 14:00');
   });
 
   it('returns an em dash for missing or invalid values', () => {
