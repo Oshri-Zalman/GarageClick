@@ -1,7 +1,7 @@
 """SQLAlchemy engine, session factory, and Base declarative class."""
 from collections.abc import Generator
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from .config import settings
@@ -13,6 +13,15 @@ engine = create_engine(
     pool_size=10,
     max_overflow=5,
 )
+
+
+@event.listens_for(engine, "connect")
+def _set_session_utc(dbapi_conn, _record):
+    """Pin every DB connection to UTC so CURRENT_TIMESTAMP / NOW() store UTC
+    regardless of the server's system timezone (fixes the timezone drift)."""
+    cur = dbapi_conn.cursor()
+    cur.execute("SET time_zone = '+00:00'")
+    cur.close()
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 

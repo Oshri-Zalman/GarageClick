@@ -1,5 +1,5 @@
 """SQLAlchemy ORM models — the 7 GarageClick tables."""
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     BigInteger,
@@ -10,6 +10,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    TypeDecorator,
     UniqueConstraint,
     func,
     text,
@@ -17,6 +18,23 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
+
+
+class UTCDateTime(TypeDecorator):
+    """DATETIME column that returns timezone-AWARE UTC datetimes.
+
+    The DB stores naive UTC (the session timezone is pinned to +00:00 in
+    database.py). Tagging read values as UTC makes the API serialize them with a
+    '+00:00' offset, so the frontend parses them as UTC and shows Israel local
+    time correctly (fixes the "3 hours off" display)."""
+
+    impl = DateTime
+    cache_ok = True
+
+    def process_result_value(self, value, dialect):
+        if value is not None and value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
 
 USER_ROLES = ("Manager", "Secretary", "Mechanic")
 TICKET_STATUSES = ("Pending", "In Progress", "Completed")
@@ -32,10 +50,10 @@ class User(Base):
     full_name: Mapped[str | None] = mapped_column(String(255))
     email: Mapped[str | None] = mapped_column(String(100), unique=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("1"))
-    last_login: Mapped[datetime | None] = mapped_column(DateTime)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+    last_login: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
+        UTCDateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
 
@@ -45,9 +63,9 @@ class Customer(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     phone_number: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
+        UTCDateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
     vehicles: Mapped[list["Vehicle"]] = relationship(
@@ -66,7 +84,7 @@ class Vehicle(Base):
     manufacturer: Mapped[str] = mapped_column(String(100), nullable=False)
     model: Mapped[str] = mapped_column(String(100), nullable=False)
     year: Mapped[int | None] = mapped_column(Integer)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, server_default=func.now())
 
     customer: Mapped["Customer"] = relationship(back_populates="vehicles")
 
@@ -89,13 +107,13 @@ class TicketWork(Base):
         server_default="Pending",
         index=True,
     )
-    estimated_completion_time: Mapped[datetime | None] = mapped_column(DateTime)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
-    started_at: Mapped[datetime | None] = mapped_column(DateTime)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    estimated_completion_time: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, server_default=func.now())
+    started_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     # Set when a completed ticket is closed/archived — kept in the DB & history,
     # but removed from the active Kanban board.
-    archived_at: Mapped[datetime | None] = mapped_column(DateTime)
+    archived_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
 class PartInventory(Base):
@@ -108,9 +126,9 @@ class PartInventory(Base):
     model: Mapped[str | None] = mapped_column(String(100))
     year_start: Mapped[int | None] = mapped_column(Integer)
     quantity_current: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
+        UTCDateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
 
@@ -123,7 +141,7 @@ class TicketPartUsed(Base):
     )
     part_id: Mapped[int] = mapped_column(ForeignKey("parts_inventory.id"), nullable=False)
     quantity_used: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, server_default=func.now())
 
 
 class VehicleModel(Base):
@@ -149,5 +167,5 @@ class AuditLog(Base):
     old_value: Mapped[str | None] = mapped_column(String(500))
     new_value: Mapped[str | None] = mapped_column(String(500))
     timestamp: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now(), index=True
+        UTCDateTime, nullable=False, server_default=func.now(), index=True
     )

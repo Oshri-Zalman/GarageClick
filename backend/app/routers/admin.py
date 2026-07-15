@@ -7,7 +7,7 @@ need session/login auditing), so those fields are returned as null. Ticket
 difficulty / quality_score are likewise not modeled, so the performance report
 exposes the metrics we can actually compute from the data we store.
 """
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select, text
@@ -40,8 +40,8 @@ _minutes = func.timestampdiff(text("MINUTE"), TicketWork.started_at, TicketWork.
 
 
 def _today() -> date:
-    # Server-local date, matching the DB's CURRENT_TIMESTAMP columns.
-    return date.today()
+    # UTC date — matches the DB's UTC timestamps (session pinned to +00:00).
+    return datetime.now(timezone.utc).date()
 
 
 @router.get("/employees")

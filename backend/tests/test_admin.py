@@ -1,5 +1,5 @@
 """Tests for the Manager-only admin reporting endpoints."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from .helpers import (
     auth,
@@ -12,8 +12,8 @@ from .helpers import (
 
 
 def now_local():
-    # Naive local time, matching the DB server clock used by created_at.
-    return datetime.now()
+    # Naive UTC — matches the DB's UTC timestamps (session pinned to +00:00).
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def base_ctx():
