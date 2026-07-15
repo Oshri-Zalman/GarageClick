@@ -31,6 +31,11 @@ vi.mock('../services/staff', () => ({
 import { getTicketsSummary, getEmployees, getTicketsByDay, getPerformance } from '../services/admin';
 import { listTickets } from '../services/tickets';
 import { getStaffTicketsSummary } from '../services/staff';
+import { getDefaultDateRange } from '../utils/dateRange';
+
+// Every date-range filter defaults to the last week, so the FIRST request each
+// dashboard makes already carries these start/end params.
+const DEFAULT_RANGE = getDefaultDateRange();
 
 // useAuth reads the current user; swap it per test via this mutable ref.
 let mockUser: User | null;
@@ -91,6 +96,23 @@ describe('DashboardPage — Manager', () => {
     expect(screen.getByRole('region', { name: 'ניטור עובדים' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'קריאות לפי יום' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'דוחות ביצועים' })).toBeInTheDocument();
+  });
+
+  it('sends the last-week default range on the initial load', async () => {
+    renderDashboard(MANAGER);
+    await screen.findByRole('region', { name: 'סיכום סטטוס קריאות' });
+
+    // The very first request is scoped to the default range (not "all time").
+    expect(getTicketsSummary).toHaveBeenLastCalledWith(DEFAULT_RANGE);
+    expect(getTicketsByDay).toHaveBeenLastCalledWith(DEFAULT_RANGE);
+  });
+
+  it('renders the date inputs pre-filled with the default last-week range', async () => {
+    renderDashboard(MANAGER);
+    await screen.findByRole('region', { name: 'סיכום סטטוס קריאות' });
+
+    expect(screen.getByLabelText('מתאריך')).toHaveValue(DEFAULT_RANGE.start_date);
+    expect(screen.getByLabelText('עד תאריך')).toHaveValue(DEFAULT_RANGE.end_date);
   });
 
   it('shows the ticket status totals', async () => {
@@ -164,9 +186,10 @@ describe('DashboardPage — Manager', () => {
     expect(within(region).getByText('12')).toBeInTheDocument(); // tickets_completed
     expect(within(region).getByText('קריאות שהושלמו')).toBeInTheDocument();
     expect(within(region).getByText('שעות עבודה')).toBeInTheDocument();
-    // Performance is fetched per assignable employee (Mechanic/Manager only).
+    // Performance is fetched per assignable employee (Mechanic/Manager only),
+    // scoped to the default last-week range on the initial load.
     expect(getPerformance).toHaveBeenCalledTimes(1);
-    expect(getPerformance).toHaveBeenCalledWith(5, {});
+    expect(getPerformance).toHaveBeenCalledWith(5, DEFAULT_RANGE);
   });
 
   it('does not show the average time per ticket on the performance cards', async () => {
@@ -254,6 +277,17 @@ describe('DashboardPage — Secretary', () => {
     // Totals come from GET /api/staff/tickets/summary, not the paginated ticket list.
     expect(getStaffTicketsSummary).toHaveBeenCalledTimes(1);
     expect(listTickets).not.toHaveBeenCalled();
+  });
+
+  it('sends the last-week default range to the staff summary on the initial load', async () => {
+    vi.mocked(getStaffTicketsSummary).mockResolvedValue(STAFF_SUMMARY);
+    renderDashboard(SECRETARY);
+    await screen.findByRole('region', { name: 'סיכום סטטוס קריאות' });
+
+    expect(getStaffTicketsSummary).toHaveBeenLastCalledWith(DEFAULT_RANGE);
+    // The inputs reflect the default range too.
+    expect(screen.getByLabelText('מתאריך')).toHaveValue(DEFAULT_RANGE.start_date);
+    expect(screen.getByLabelText('עד תאריך')).toHaveValue(DEFAULT_RANGE.end_date);
   });
 
   it('does not show manager-only employee monitoring or performance reports', async () => {

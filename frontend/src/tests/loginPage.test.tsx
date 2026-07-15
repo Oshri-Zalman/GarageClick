@@ -2,8 +2,23 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { AxiosError, AxiosHeaders } from 'axios';
 import LoginPage from '../pages/LoginPage';
 import type { AuthToken } from '../types';
+
+// Builds an AxiosError with a given HTTP status, matching what the auth service
+// rejects with when the backend rejects a login (e.g. 401 for bad credentials).
+function axiosStatusError(status: number): AxiosError {
+  const err = new AxiosError('Request failed');
+  err.response = {
+    status,
+    statusText: '',
+    data: { detail: 'Invalid credentials' },
+    headers: {},
+    config: { headers: new AxiosHeaders() },
+  };
+  return err;
+}
 
 vi.mock('../services/auth', () => ({
   login: vi.fn(),
@@ -65,16 +80,65 @@ describe('LoginPage', () => {
     expect(await screen.findByText('תוכן קנבן')).toBeInTheDocument();
   });
 
-  it('shows a Hebrew error message when login fails', async () => {
-    vi.mocked(login).mockRejectedValueOnce(new Error('401'));
+  it('shows the Hebrew invalid-credentials message when login is rejected (401)', async () => {
+    vi.mocked(login).mockRejectedValueOnce(axiosStatusError(401));
     renderLogin();
 
     await userEvent.type(screen.getByLabelText('שם משתמש'), 'uri');
     await userEvent.type(screen.getByLabelText('סיסמה'), 'wrong');
     await userEvent.click(screen.getByRole('button', { name: 'כניסה' }));
 
-    expect(await screen.findByText('שם משתמש או סיסמה שגויים')).toBeInTheDocument();
+    expect(await screen.findByText('שם משתמש או סיסמה לא נכונים')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+
+  it('does not crash and keeps the login form visible after a failed login', async () => {
+    vi.mocked(login).mockRejectedValueOnce(axiosStatusError(401));
+    renderLogin();
+
+    await userEvent.type(screen.getByLabelText('שם משתמש'), 'uri');
+    await userEvent.type(screen.getByLabelText('סיסמה'), 'wrong');
+    await userEvent.click(screen.getByRole('button', { name: 'כניסה' }));
+
+    await screen.findByText('שם משתמש או סיסמה לא נכונים');
+    // The form is still mounted and interactive — no crash, no white screen.
+    expect(screen.getByLabelText('שם משתמש')).toBeInTheDocument();
+    expect(screen.getByLabelText('סיסמה')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'כניסה' })).toBeEnabled();
+  });
+
+  it('shows a safe Hebrew fallback for an unknown (non-credentials) login error', async () => {
+    vi.mocked(login).mockRejectedValueOnce(new Error('network down'));
+    renderLogin();
+
+    await userEvent.type(screen.getByLabelText('שם משתמש'), 'uri');
+    await userEvent.type(screen.getByLabelText('סיסמה'), 'secret');
+    await userEvent.click(screen.getByRole('button', { name: 'כניסה' }));
+
+    expect(await screen.findByText('אירעה שגיאה בהתחברות. נסה שוב מאוחר יותר.')).toBeInTheDocument();
+  });
+
+  it('lets the user try again and succeed after a failed login', async () => {
+    vi.mocked(login).mockRejectedValueOnce(axiosStatusError(401));
+    renderLogin();
+
+    await userEvent.type(screen.getByLabelText('שם משתמש'), 'uri');
+    await userEvent.type(screen.getByLabelText('סיסמה'), 'wrong');
+    await userEvent.click(screen.getByRole('button', { name: 'כניסה' }));
+    await screen.findByText('שם משתמש או סיסמה לא נכונים');
+
+    // Retry with the correct password — a second attempt succeeds and redirects.
+    vi.mocked(login).mockResolvedValueOnce({
+      token: 'jwt',
+      user_id: 1,
+      role: 'Manager',
+      full_name: 'אורי',
+    });
+    await userEvent.clear(screen.getByLabelText('סיסמה'));
+    await userEvent.type(screen.getByLabelText('סיסמה'), 'secret');
+    await userEvent.click(screen.getByRole('button', { name: 'כניסה' }));
+
+    expect(await screen.findByText('תוכן לוח בקרה')).toBeInTheDocument();
   });
 
   it('shows a loading state and disables the button while logging in', async () => {

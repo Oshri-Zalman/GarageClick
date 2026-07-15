@@ -4,6 +4,7 @@ import type { TicketsSummary } from '../types';
 import { apiErrorMessage } from '../utils/apiErrors';
 import {
   buildDateRangeParams,
+  getDefaultDateRange,
   validateDateRange,
   type DateRange,
 } from '../utils/dateRange';
@@ -24,9 +25,11 @@ export default function SecretaryDashboard() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [startInput, setStartInput] = useState('');
-  const [endInput, setEndInput] = useState('');
-  const [appliedRange, setAppliedRange] = useState<DateRange>({});
+  // Filters default to the last week (today minus 6 days → today) so the initial
+  // load is scoped to recent activity and sends start_date/end_date by default.
+  const [appliedRange, setAppliedRange] = useState<DateRange>(getDefaultDateRange);
+  const [startInput, setStartInput] = useState(() => appliedRange.start_date ?? '');
+  const [endInput, setEndInput] = useState(() => appliedRange.end_date ?? '');
   const [rangeError, setRangeError] = useState<string | null>(null);
 
   const fetchSummary = useCallback(

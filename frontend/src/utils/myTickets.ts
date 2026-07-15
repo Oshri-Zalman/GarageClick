@@ -1,5 +1,10 @@
 import type { KanbanTicket, Role, User } from '../types';
 
+// Re-exported from the centralized date/time utility so every archive view keeps
+// using the same import while the formatting logic (Israel local time) lives in
+// one place. See utils/datetime.ts.
+export { formatDateTime } from './datetime';
+
 // Helpers for the ticket archive page ("ארכיון כרטיסים", Stage 10).
 
 // Which archive a view shows:
@@ -61,16 +66,3 @@ export const SCOPE_LABELS: Record<ArchiveScope, string> = {
   garage: 'ארכיון המוסך',
 };
 
-// Formats an ISO timestamp into a short, deterministic Hebrew-friendly string
-// (DD/MM/YYYY HH:mm). Returns an em dash for missing/invalid values so the
-// archive layout never shows raw nulls.
-export function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '—';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return (
-    `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ` +
-    `${pad(date.getHours())}:${pad(date.getMinutes())}`
-  );
-}

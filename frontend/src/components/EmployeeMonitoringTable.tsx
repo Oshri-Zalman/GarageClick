@@ -1,5 +1,6 @@
 import type { EmployeeMonitorRow } from '../types';
 import { roleLabel } from '../config/roles';
+import { formatDateTime } from '../utils/datetime';
 
 interface Props {
   employees: EmployeeMonitorRow[];
@@ -8,12 +9,10 @@ interface Props {
   unavailable?: boolean;
 }
 
-// Formats the last-login timestamp for display, tolerating null (the backend
-// returns null until a user has logged in at least once).
+// Formats the last-login timestamp for display in Israel local time, tolerating
+// null (the backend returns null until a user has logged in at least once).
 function formatLastLogin(value: string | null): string {
-  if (!value) return '—';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('he-IL');
+  return formatDateTime(value);
 }
 
 // Team monitoring table (FR-6.1 / TDD §4.6 GET /api/admin/employees). Shows open
