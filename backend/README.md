@@ -3,6 +3,7 @@
 Garage management system backend, built with **FastAPI + SQLAlchemy (MySQL)**.
 
 ## Stack
+- **Python 3.13** — language / runtime
 - **FastAPI** — HTTP framework + automatic OpenAPI docs (`/docs`)
 - **SQLAlchemy 2.0 (ORM)** — models + queries against MySQL
 - **PyMySQL** — MySQL driver
@@ -59,19 +60,31 @@ pytest
 backend/
 ├── app/
 │   ├── main.py                # FastAPI app factory + entrypoint
-│   ├── config.py              # settings from .env
-│   ├── database.py            # engine, SessionLocal, Base, get_db
-│   ├── models.py              # ORM models (7 tables)
+│   ├── config.py              # settings from .env (DB, JWT, CORS, Twilio)
+│   ├── database.py            # engine (UTC session), SessionLocal, Base, get_db
+│   ├── models.py              # ORM models (8 tables)
 │   ├── schemas.py             # Pydantic request schemas
+│   ├── validators.py          # phone / plate / year / email validators
 │   ├── security.py            # bcrypt + JWT helpers
 │   ├── deps.py                # get_current_user + require_roles
-│   ├── init_db.py             # python -m app.init_db
-│   ├── services/workflow.py   # state machine
-│   └── routers/               # auth, customers, vehicles, tickets, parts
+│   ├── pagination.py          # list pagination helper
+│   ├── daterange.py           # date-range filter helper
+│   ├── catalog_data.py        # seed data for the make/model catalog
+│   ├── init_db.py             # python -m app.init_db (schema + migrations + catalog)
+│   ├── seed.py                # python -m app.seed (demo users + parts)
+│   ├── services/
+│   │   ├── workflow.py        # state machine
+│   │   └── notifications.py   # WhatsApp (mock / Twilio)
+│   └── routers/               # auth, customers, vehicles, tickets, parts,
+│                              #   mechanics, catalog, staff, admin
 ├── tests/                     # pytest integration + unit tests
+├── Dockerfile, start.sh, Procfile   # container + deploy (see /DEPLOY.md)
 ├── requirements.txt
 └── .env.example
 ```
+
+The 8 ORM tables: `users`, `customers`, `vehicles`, `tickets_work`,
+`parts_inventory`, `ticket_parts_used`, `vehicle_models`, `audit_log`.
 
 ## Authentication
 1. `POST /api/auth/login` with `{ username, password }` → returns a JWT.
@@ -135,16 +148,17 @@ deactivate their own account or remove their own Manager role (`400`).
 | GET  | `/api/tickets?include_archived=true` | all roles* | Include archived tickets (default excludes them) |
 | GET  | `/api/tickets?archived_only=true` | all roles* | Only archived/closed tickets (the "My Tickets" history) |
 | PATCH| `/api/tickets/{id}/status` | all roles* | Status change via state machine |
-| GET  | `/api/tickets`, `/api/tickets/{id}` | all roles* | List / detail (Mechanic: own only) |
+| GET  | `/api/tickets?start_date=&end_date=` | all roles* | List (also filterable by open-date range, e.g. for the archive) |
+| GET  | `/api/tickets/{id}` | all roles* | Ticket detail incl. `parts_used` (Mechanic: own only) |
 | GET  | `/api/parts/compatible?manufacturer=&model=&year=` | all roles | Compatible parts (out-of-stock flagged) |
 | GET  | `/api/parts/inventory?manufacturer=&model=&part_name=&part_code=` | Manager, Secretary | Stock list, server-side filtered + paginated |
-| GET  | `/api/staff/tickets/summary` | Manager, Secretary | Operational ticket counts + avg time (no per-employee data) |
+| GET  | `/api/staff/tickets/summary?start_date=&end_date=` | Manager, Secretary | Operational ticket counts + avg time (no per-employee data) |
 | POST/PUT | `/api/parts`, `/api/parts/{id}` | Manager, Secretary | Add / update part |
 | GET  | `/api/parts/reports/consumption?start_date=&end_date=` | Manager, Secretary | Parts consumption: total, per-day, **per-part**, by vehicle make, by employee (FR-7.6) |
 | GET  | `/api/admin/employees` | Manager | Team monitoring (open + completed-today per employee) |
-| GET  | `/api/admin/tickets/summary` | Manager | Counts per status + avg completion time |
+| GET  | `/api/admin/tickets/summary?start_date=&end_date=` | Manager | Counts per status + avg completion time (optional date range) |
 | GET  | `/api/admin/tickets/by-day?start_date=&end_date=` | Manager | Per-day created/completed + avg time |
-| GET  | `/api/admin/reports/performance?mechanic_id=` | Manager | Per-mechanic performance metrics |
+| GET  | `/api/admin/reports/performance?mechanic_id=&start_date=&end_date=` | Manager | Per-mechanic performance metrics (optional date range) |
 | GET  | `/api/admin/users` | Manager | List all users (incl. username + is_active) for user management |
 | POST | `/api/admin/users` | Manager | Create a user |
 | PATCH| `/api/admin/users/{id}` | Manager | Update user (password, role, name, activate/deactivate) |
@@ -181,3 +195,10 @@ by sending the sandbox `join <code>` message once.
 customer/vehicle, parts availability check (`SELECT ... FOR UPDATE`), ticket
 insert, `ticket_parts_used`, `parts_inventory` deduction, and an `audit_log`
 (`action='ticket_created'`) entry. Any failure rolls the whole thing back.
+
+## Timezone
+All timestamps are stored and returned in **UTC**. The DB session is pinned to
+`+00:00` and the `UTCDateTime` column type returns timezone-aware datetimes, so
+the API serializes them with a `+00:00` offset (ISO 8601). The frontend converts
+them to Israel local time for display — keeping times correct regardless of where
+the server runs.
