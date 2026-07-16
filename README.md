@@ -10,54 +10,20 @@ The system includes a Hebrew RTL user interface, designed for the daily work of 
 
 From a technical perspective, the system is divided into three main parts: **Frontend**, **Backend**, and **Database**.
 
-### Frontend
+The Frontend was built using **React**, **TypeScript**, **Vite**, and **Tailwind CSS**. On the Frontend side, several key mechanisms were implemented, such as role-based UI behavior, a work board based on ticket status transitions, and reusable components for forms, tables, modals, status badges, error messages, and data filtering.
 
-The Frontend was built using:
+The Backend was built using **Python** and **FastAPI**, and provides a REST API for all core system operations. On the server side, the system implements mechanisms such as user authentication, role-based authorization, ticket lifecycle management, ticket archiving, user management, and spare-part compatibility logic based on vehicle details and inventory availability.
 
-- **React**
-- **TypeScript**
-- **Vite**
-- **Tailwind CSS**
-
-On the Frontend side, several key mechanisms were implemented:
-
-- **Role-Based UI** — the interface changes according to the user's role: Manager, Secretary, or Mechanic.
-- **Work Board State Flow** — tickets move between statuses such as Pending, In Progress, Completed, and Archived.
-- **Reusable Components** — shared components for forms, tables, modals, status badges, error messages, and data filtering.
-
-### Backend
-
-The Backend was built using:
-
-- **Python**
-- **FastAPI**
-- **REST API**
-
-On the Backend side, several key mechanisms were implemented:
-
-- **Authentication & Authorization** — user login and role-based permissions.
-- **Ticket Lifecycle Management** — creating tickets, updating their status, completing them, and archiving them.
-- **Parts Compatibility & Inventory Logic** — matching spare parts to vehicles, checking inventory availability, supporting universal parts, and updating stock quantities.
-
-### Database
-
-The data is stored in a relational database that contains the main information of the system, including:
-
-- Users and roles
-- Customers
-- Vehicles
-- Work tickets and statuses
-- Spare parts and inventory
-- Part-to-vehicle compatibility
-- Archive data
-- Basic reports
+The data is stored in a relational database that contains the main information of the system: users and roles, customers, vehicles, work tickets, statuses, spare parts, inventory, part-to-vehicle compatibility, archive data, and basic reports.
 
 ---
 
 ## Project Authors
 
-The project was developed by **Tal Eliya** and **Oshri Zalman** as part of the **“Introduction to Software Engineering”** course during the second year of the **Computer and Software Engineering** degree.
+The project was developed by **Tal Eliya** and **Oshri Zalman** as part of the **"Introduction to Software Engineering"** course during the second year of the **Computer and Software Engineering** degree.
 
 ---
 
-![GarageClick Screenshot](docs/images/garageclick.png)
+## System Preview
+
+![GarageClick](docs/images/garageclick.png.jpeg)
